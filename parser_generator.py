@@ -64,11 +64,11 @@ class EarleyParser:
         self.ambiguous = False      # status vars for each run of the parser
         self.resolved = True        # more status
 
-        self.debug = False
+        self.debug = True
         self.drawGraph = False
         if self.debug:
             print "Grammar:"
-            self.grammar.dump()
+            #self.grammar.dump()
 
     def parse(self, inp):
 
@@ -370,7 +370,7 @@ class EarleyParser:
                     if self.debug:
                         print e.message
                     raise SyntaxError('Error')
-                    # util.error("My code is a snake, your python is invalid.")
+                    util.error("My code is a snake, your python is invalid.")
                 return v
 
         # INVALID /stamps string with red LOD
