@@ -20,4 +20,4 @@ if __name__ == '__main__':
 
     # Load program into the cs164interpreter
     input_ast = cs164parser.parse(open(cs164_input_file).read())
-    interpreter.ExecGlobal(input_ast)
+    interpreter.ExecGlobalStmt(input_ast)

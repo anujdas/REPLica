@@ -2,7 +2,7 @@
 # @file parser_generator.py
 #
 # $Id: parser_generator.py,v 1.7 2007/04/16 06:54:11 cgjones Exp $
-import grammar, grammar_parser, re, sys, types, util, string, pprint
+import grammar, grammar_parser, re, sys, types, util, string, pprint, os.path
 from collections import defaultdict
 
 ##-----------------------------------------------------------------------------
@@ -63,12 +63,10 @@ class EarleyParser:
         self.terminals, self.invRenamedTerminals = EarleyParser.preprocess (gram)
         self.ambiguous = False      # status vars for each run of the parser
         self.resolved = True        # more status
+        self.subparser = None
 
-        self.debug = True
+        self.debug = False
         self.drawGraph = False
-        if self.debug:
-            print "Grammar:"
-            #self.grammar.dump()
 
     def parse(self, inp):
 
@@ -81,6 +79,7 @@ class EarleyParser:
                     break
             if gviz is null:
                 print "Too many graphs; delete some, try again."
+                print "No more graphs will be drawn for this run."
                 self.drawGraph = False
 
         # The graph is partioned by (destination,completenessStatus) of edges.
@@ -91,19 +90,6 @@ class EarleyParser:
         # during iteration, it cannot be tested for membership as fast as the set.
         # Hence we use it together with a set. 
         # See the pattern below for illustration of how we use the set and list in tandem.
-        #
-        # List+Set pattern:
-        #
-        # iterate over a list but use a set to determine
-        # constant-time membership in the (changing) list
-        # 
-        # lst = [1,2]
-        # s = set(lst)
-        # for v in lst:
-        #     print v
-        #     if (3 not in s):
-        #         lst.append(3)
-        #         s.add(3)
 
         # defaultdict is like a dictionary that provides a default value when key is not present
         graph = defaultdict(lambda: ([],set()))
@@ -189,8 +175,8 @@ class EarleyParser:
         def disambiguate(e1, e2, oldE1, childE1):
 
             # parse out any information about operators, etc.
-            opPrec1,assoc1,dprec1,op1 = e1[2].info
-            opPrec2,assoc2,dprec2,op2 = e2[2].info
+            opPrec1,assoc1,dprec1,subsym1,op1 = e1[2].info
+            opPrec2,assoc2,dprec2,subsym2,op2 = e2[2].info
             childrenE1 = getChildren(oldE1, inProgress)
             if childE1:
                 childrenE1.append(childE1)
@@ -264,7 +250,6 @@ class EarleyParser:
                 if self.debug:
                     print "*ADVANCE*"
                 for (i,_j,P,pos) in edgesIncomingTo(j-1,inProgress)[0]:
-                    incr(1)
                     assert _j==j-1
                     if pos < len(P.RHS) and P.RHS[pos]==inp[j-1][0]:
                         addEdge((i,j,P,pos+1), (i,_j,P,pos), inp[_j])
@@ -280,15 +265,10 @@ class EarleyParser:
                 if self.debug:
                     print "*COMPLETE*"
                 for (i,_j,P,pos) in edgesIncomingTo(j,complete)[0]:
-                    incr(2)
                     assert _j==j and pos == len(P.RHS)
                     for (k,_i,Q,pos2) in edgesIncomingTo(i,inProgress)[0]:
-                        incr(3)
                         assert _i==i and pos2 < len(Q.RHS)
-                        incr(5)
-
                         if Q.RHS[pos2]==P.LHS:
-                            incr(6)
                             edgeWasInserted = addEdge((k,j,Q,pos2+1), (k,i,Q,pos2), (i,j,P,pos)) or edgeWasInserted
 
                 # PREDICT what the parser is to see on input (move dots in edges that are in progress)
@@ -298,7 +278,6 @@ class EarleyParser:
                 if self.debug:
                     print "*PREDICT*"
                 for (i,_j,P,pos) in edgesIncomingTo(j,inProgress)[0]:
-                    incr(4)
                     assert _j==j and pos < len(P.RHS)
                     if P.RHS[pos][0] not in ('*','@'):  # non-terminals start with special chars
                         M = P.RHS[pos]
@@ -548,8 +527,16 @@ class EarleyParser:
                     # No declaration ==> undefined dprec
                     dprec = None
 
+                if production.subsym != None:
+                    # Production had a %subparse declaration
+                    subsym = production.subsym
+                else:
+                    # No subparsing for this production
+                    subsym = None
+
+
                 # Information about this production to be used during parsing
-                production.info = (opPrec, assoc, dprec, production)
+                production.info = (opPrec, assoc, dprec, subsym, production)
 
         return terminals, dict([(new,orig) for (orig,new) in renamedTerminals.iteritems()])
 
