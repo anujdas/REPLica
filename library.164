@@ -1,0 +1,42 @@
+# The first two functions are desugaring helper functions.
+# You are encouraged to use them.
+
+# Return an iterator for a list, a list is a dictionary
+# this iterator iterates over keys 0 .. len(list)-1
+def _getIterator_(list) {
+    # 0-1 because we currently don't support unary minus
+    def i = 0-1
+    lambda() {
+         i = i + 1
+         if (i < len(list)) { list[i] } else { null } # terminates iteration
+    }
+}
+
+def _while_(C,B) {
+        def lastVal = null
+        def While(C, B) {
+            if (C()) { lastVal = B(); While(C, B) } else {}
+        }
+        While(C, B)
+        lastVal
+}
+
+# Turn a coroutine into an iterator
+def wrap(lam, arg) {
+    def co = coroutine(lam)
+    lambda() {
+        resume(co, arg)
+    }
+}
+
+# append o to list; return the list
+def append(list,o) {
+    list[len(list)] = o
+}
+
+def False = 0
+def True = 1
+
+def not(b) {if (b) {False} else {True}}
+def max(x,y) { if (x>y) { x } else { y } }
+def min(x,y) { if (x<y) { x } else { y } }

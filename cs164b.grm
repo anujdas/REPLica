@@ -1,0 +1,107 @@
+%ignore /[ \t]+/
+%ignore /\\\n/
+%ignore /#.*/
+
+%left '&&' '||'
+%right '==' '!=' '<=' '>=' '<' '>'
+%right '='
+%left '+' '-'
+%left '*' '/'
+
+%%
+
+P       ->  n_                          %{ return [] %}
+        |   n_ Pn n_                    %{ return n2.val %}
+        ;
+Pn      ->  S                           %{ return [n1.val] %}
+        |   Pn n S                      %{ return n1.val + [n3.val] %}
+        ;
+
+S       ->  E                           %{ return ('exp', n1.val) %}
+        |   id '=' E                    %{ return ('asgn', n1.val, n3.val) %}
+        |   'def' id '=' E              %{ return ('def', n2.val, n4.val) %}
+        |   'def' id '(' A ')' '{' P '}'%{ return ('def', n2.val, ('lambda', n4.val, n7.val)) %}
+        |   'def' E ':' id '(' A ')' '{' P '}'          %{ return ('put', n2.val, ('string-lit', n4.val), ('lambda', ['self'] + n6.val, n9.val)) %}
+        |   E '[' E ']' '=' E           %{ return ('put', n1.val, n3.val, n6.val) %}
+        |   E '.' id '=' E              %{ return ('put', n1.val, ('string-lit', n3.val), n5.val) %}
+        |   'print' E                   %{ return ('print', n2.val) %}
+        |   'error' E                   %{ return ('error', n2.val) %}
+        |   'if' '(' E ')' '{' P '}' 'else' '{' P '}'   %{ return ('if', n3.val, n6.val, n10.val) %}
+        |   'if' '(' E ')' '{' P '}'    %{ return ('if', n3.val, n6.val, None) %}
+        |   'while' '(' E ')' '{' P '}' %{ return ('while', n3.val, n6.val) %}
+        |   'for' '(' id 'in' E ')' '{' P '}'           %{ return ('for', n3.val, n5.val, n8.val) %}
+        |   'for' id 'in' E '{' P '}'   %{ return ('for', n2.val, n4.val, n6.val) %}
+        ;
+
+E       ->  'null'                      %dprec 0 %{ return ('null',) %}
+        |   num                         %dprec 0 %{ return ('int-lit', n1.val) %}
+        |   string                      %dprec 0 %{ return ('string-lit', n1.val) %}
+        |   id                          %dprec 0 %{ return ('var', n1.val) %}
+        |   '{' T '}'                   %dprec 0 %{ return ('dict-lit', n2.val) %}
+        |   E '+' E                     %dprec 1 %{ return ('+', n1.val, n3.val) %}
+        |   E '-' E                     %dprec 1 %{ return ('-', n1.val, n3.val) %}
+        |   E '*' E                     %dprec 1 %{ return ('*', n1.val, n3.val) %}
+        |   E '/' E                     %dprec 1 %{ return ('/', n1.val, n3.val) %}
+        |   E '==' E                    %dprec 1 %{ return ('==', n1.val, n3.val) %}
+        |   E '!=' E                    %dprec 1 %{ return ('!=', n1.val, n3.val) %}
+        |   E '<=' E                    %dprec 1 %{ return ('<=', n1.val, n3.val) %}
+        |   E '>=' E                    %dprec 1 %{ return ('>=', n1.val, n3.val) %}
+        |   E '<' E                     %dprec 1 %{ return ('<', n1.val, n3.val) %}
+        |   E '>' E                     %dprec 1 %{ return ('>', n1.val, n3.val) %}
+        |   E '&&' E                    %dprec 1 %{ return ('&&', n1.val, n3.val) %}
+        |   E '||' E                    %dprec 1 %{ return ('||', n1.val, n3.val) %}
+        |   E 'in' E                    %dprec 1 %{ return ('in', n1.val, n3.val) %}
+        |   E '[' E ']'                 %dprec 0 %{ return ('get', n1.val, n3.val) %}
+        |   E '.' id                    %dprec 0 %{ return ('get', n1.val, ('string-lit', n3.val)) %}
+        |   'len' '(' E ')'             %dprec 0 %{ return ('len', n3.val) %}
+        |   '[' E 'for' id 'in' E ']'   %dprec 0 %{ return ('comprehension', n2.val, n4.val, n6.val) %}
+        |   'lambda' '(' A ')' '{' P '}'%dprec 0 %{ return ('lambda', n3.val, n6.val) %}
+        |   E '(' V ')'                 %dprec 0 %{ return ('call', n1.val, n3.val) %}
+        |   E ':' id '(' V ')'          %dprec 0 %{ return ('objcall', n1.val, n3.val, n5.val) %}
+        |   'native' id '.' id '(' V ')'%dprec 0 %{ return ('native', n2.val, n4.val, n6.val) %}
+        |   'ite' '(' E ',' E ',' E ')' %dprec 0 %{ return ('ite', n3.val, n5.val, n7.val) %}
+        |   'coroutine' '(' E ')'       %dprec 0 %{ return ('coroutine', n3.val) %}
+        |   'resume' '(' E ',' E ')'    %dprec 0 %{ return ('resume', n3.val, n5.val) %}
+        |   'yield' '(' E ')'           %dprec 0 %{ return ('yield', n3.val) %}
+        |   '(' E ')'                   %dprec 0 %{ return n2.val %}
+        ;
+
+A       ->  _                           %{ return [] %}
+        |   An                          %{ return n1.val %}
+        ;
+An      ->  id                          %{ return [n1.val] %}
+        |   An ',' id                   %{ return n1.val + [n3.val] %}
+        ;
+
+V       ->  _                           %{ return [] %}
+        |   Vn                          %{ return n1.val %}
+        ;
+Vn      ->  E                           %{ return [n1.val] %}
+        |   Vn ',' E                    %{ return n1.val + [n3.val] %}
+        ;
+
+T       ->  _                           %{ return [] %}
+        |   Tn                          %{ return n1.val %}
+        ;
+Tn      ->  id '=' E                    %{ return [(n1.val, n3.val)] %}
+        |   Tn ',' id '=' E             %{ return n1.val + [(n3.val, n5.val)] %}
+        ;
+
+n       ->  /[\r\n;]/
+        |   n /[\r\n;]/
+        ;
+
+n_      ->  _
+        |   n
+        ;
+
+num     ->  /[0-9]+/                    %{ return int(n1.val) %}
+        ;
+
+id      ->  /[a-zA-Z_][a-zA-Z_0-9]*/    %{ return n1.val %}
+        ;
+
+string  ->  /\"(?:\\\\|\\\"|\\\r\n|\\\r|\\\n|[^\"\r\n])*\"/     %{ return n1.val[1:-1].replace("\\'","'").replace('\\"','"') %}
+        |   /\'(?:\\\\|\\\'|\\\r\n|\\\r|\\\n|[^\'\r\n])*\'/     %{ return n1.val[1:-1].replace("\\'","'").replace('\\"','"') %}
+        ;
+
