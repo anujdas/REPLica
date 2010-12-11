@@ -69,7 +69,7 @@ class EarleyParser:
         self.resolved = True        # more status
 
         self.debug = False          # TODO: Remove this for final submission
-        self.drawGraph = True
+        self.drawGraph = False
         if self.debug:
             print "Grammar:"
             self.grammar.dump()
