@@ -42,10 +42,6 @@ def makeParser (gram, type='earley'):
         raise TypeError, 'Unknown parser type specified'
 
 ##-----------------------------------------------------------------------------
-## Parse Tree code removed for now.  You will get it in PA6
-
-
-##-----------------------------------------------------------------------------
 
 class saObject(): #synthesized attribute object
     def __init__ (self, action=None, children=None, val=None):
@@ -68,7 +64,7 @@ class EarleyParser:
         self.ambiguous = False      # status vars for each run of the parser
         self.resolved = True        # more status
 
-        self.debug = False          # TODO: Remove this for final submission
+        self.debug = False
         self.drawGraph = False
         if self.debug:
             print "Grammar:"
@@ -77,8 +73,15 @@ class EarleyParser:
     def parse(self, inp):
 
         if self.drawGraph: #init
-            gviz = open('graph.dot','w')
-            gviz.write('digraph G {\nrankdir="TB";')
+            gviz = null
+            for i in xrange(100):   # avoid clobbering existing graphs
+                if not os.path.isfile('graph-' + str(i) + '.dot'):
+                    gviz = open('graph-' + str(i) + '.dot', 'w')
+                    gviz.write('digraph G {\nrankdir="TB";')
+                    break
+            if gviz is null:
+                print "Too many graphs; delete some, try again."
+                self.drawGraph = False
 
         # The graph is partioned by (destination,completenessStatus) of edges.
         # The graph is thus a dictionary with the key (dst,complete).

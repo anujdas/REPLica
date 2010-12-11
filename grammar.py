@@ -32,14 +32,15 @@ class Production:
 
     opPrec:
     opAssoc:
-    ''' 
-    def __init__ (self, lhs, rhs, actions, prec, assoc):
+    '''
+    def __init__ (self, lhs, rhs, actions, prec, assoc, subsym):
         '''Create a new production'''
         self.LHS = lhs
         self.RHS = rhs
         self.actions = actions
         self.prec = prec
         self.assoc = assoc
+        self.subsym = subsym
 
         self.opPrec = None
         self.opAssoc = None
@@ -70,60 +71,11 @@ class Rule:
     def __str__ (self):
         return '<grammar.Rule lhs="%s" ...>' % (self.lhs)
 
-
-    def dump (self, file=stdout, i=0):
-        '''Print a pretty version of this rule to FILE at indent level I'''
-
-        REGEX = re.compile ('a')        # so we simulate isinstance()
-
-        print >>file, (i*' ')+'(Rule %s'% (self.lhs)
-        i += 4
-        for prod in self.productions:
-            print >>file, (i*' ')+'(production [',
-
-            for sym in prod.RHS:
-                if sym == Grammar.EPSILON:
-                    print >>file, '(epsilon),',
-                elif type (sym) == type (REGEX):
-                    print >>file, '%s,'% (sym.pattern),
-                else:
-                    print >>file, '%s,'% (sym),
-            print >>file, ']'
-
-            if prod.prec >= 0:
-                print >>file, ((i+4)*' ')+'(precedence %d)'% (prod.prec)
-            if prod.assoc:
-                print >>file, ((i+4)*' ')+'(assoc %s)'% (prod.assoc.pattern)
-            if prod.actions:
-                print >>file, ((i+4)*' ')+'(action {%s})'% (prod.actions[-1])
-            if prod.opPrec >= 0:
-                print >>file, ((i+4)*' ')+'(operator precedence %d)'% (prod.opPrec)
-            if prod.opAssoc:
-                print >>file, ((i+4)*' ')+'(operator assoc %s)'% (prod.opAssoc)
-            if prod.info:
-                print >>file, ((i+4)*' ')+'(info %s)'% (str(prod.info))
-            print >>file, (i*' ')+ ')'
-
-        i -= 4
-        print >>file, (i*' ')+')'
-
-
-    def addProduction (self, rhs, actions=None, prec=-1, assoc=None):
+    def addProduction (self, rhs, actions=None, prec=-1, assoc=None, subsym=None):
         '''Add a production self.lhs -> RHS, with an optional precedence,
         semantic action, and associativity override.
         '''
-
-        # CYK TODO: make sure changing Production from a dict to an object
-        # did not break the cyk parser.
-
-        # (old) CYK code
-        # self.productions.append (
-        #    { 'rhs': tuple(rhs), 'actions': actions, 'prec': prec,
-        #      'assoc': assoc,})
-
-        self.productions.append(Production(
-                self.lhs, tuple(rhs),
-                actions, prec, assoc))
+        self.productions.append(Production(self.lhs, tuple(rhs), actions, prec, assoc, subsym))
 
 ##-----------------------------------------------------------------------------
 
@@ -152,28 +104,6 @@ class Grammar:
 
     def __str__ (self):
         return '<grammar.Grammar startSymbol="%s" ...>'% (self.startSymbol)
-
-
-    def dump (self, file=stdout):
-        '''Print a pretty version of this grammar to FILE'''
-        print >>file, '(Grammar'
-
-        print >>file, (4*' ')+'(Declarations'
-        for mod in self.imports:
-            print >>file, (8*' ')+'(import %s)'% (mod)
-        for (op, prec, assoc) in self.__opAssocDecls:
-            print >>file, (8*' ')+'(assoc %s %d %s)'% (op.pattern, prec, assoc)
-        print >>file, (4*' ')+')'
-
-        print >>file, (4*' ')+'(Rules'
-        for rule in self.rules:
-            rule.dump (file, 8)
-        print >>file, (4*' ')+')'
-
-        print >>file, (4*' ')+'(StartSymbol %s)'% (self.startSymbol)
-
-        print >>file, ')'
-
 
     def setStartSymbol (self, startSymbol):
         '''Set the start symbol of this grammar.'''
