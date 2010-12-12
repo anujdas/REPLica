@@ -394,7 +394,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
             REPL.softError("Type error")
             return
         except NameError:
-        	return
+            return
     return NeverReached
 
 def desugar(ast):
