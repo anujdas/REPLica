@@ -2,7 +2,7 @@
 #
 # Motivation: stackful interpreter cannot implement coroutines
 
-import sys, getopt, parser_generator, grammar_parser
+import sys, getopt, parser_generator, grammar_parser, repl
 
 # global environment.  Persists across invocations of the ExecGlobal function 
 globEnv = {'__up__':None}
@@ -218,7 +218,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
             elif e[0] == 'def':    define(e[1], e[2] if type(e[2])==type(1) else lookup(e[2]))
             elif e[0] == 'print':
                 if lookup(e[1]) != None:
-                    print lookup(e[1])
+                    print lookup(e[1]) #change to REPLprints
                 else:
                     print "null"
             elif e[0] == 'error':
