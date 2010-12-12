@@ -159,7 +159,8 @@ class cs164bRepl:
                     suggestions = ""
                     try:
                         lineTokens = self.cs164bparser.tokenize(line)
-                        suggestions = dict(interpreter.complete(lineTokens[-1]))
+                        if lineTokens:
+                            suggestions = dict(interpreter.complete(lineTokens[-1]))
                     except NameError, e:
                         lineTokens = [] #TODO color line red
                     if not suggestions:
