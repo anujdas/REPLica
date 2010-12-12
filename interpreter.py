@@ -170,7 +170,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
         callStack: the stack of calling context of calls pending in the coroutine
         env: the current environment. """
     def lookup(name):
-        def _lookup(name,env):
+        def _lookup(name, env):
             if env.has_key(name):
                 return env[name]
             elif env["__up__"]:
@@ -183,11 +183,11 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
         if var in obj:
             return obj[var]
         elif '__mt' not in obj or not obj['__mt']:
-            REPL.softError("No such attribute " + var + " in " + obj)
+            REPL.softError("No such attribute %s in %s." % (var, obj))
             raise NameError
         else:
             return lookupObject(obj['__mt'], var)
-    def update(name,val):
+    def update(name, val):
         def _update(name, env, val):
             if env.has_key(name):
                 env[name] = val
@@ -209,7 +209,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
         define(lhsVar, fun.corArg)
 
     if pc == -1:
-        REPL.softError("This coroutine has terminated already!")       # this is a coroutine that has ended
+        REPL.softError("Attempted to resume a terminated coroutine.")       # this is a coroutine that has ended
         return
 
     while True:
@@ -341,7 +341,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
 
                 # error check - needs to be a function
                 if not isinstance(funcdef, FunVal) or funcdef.coroutine:
-                    REPL.softError("Can't wrap a non-function %s in a coroutine" % e[2] )   # not a function :(
+                    REPL.softError("Can't wrap non-function %s in a coroutine" % e[2] )   # not a function :(
                     return
 
                 # copy the env, so we don't clobber the lambda
@@ -362,12 +362,12 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
 
                 # error check
                 if not isinstance(co, FunVal) or not co.coroutine:
-                    REPL.softError("%s is not a coroutine." % e[2])   # not a coroutine :(
+                    REPL.softError("Can't resume %s: not a coroutine." % e[2])     # not a coroutine :(
                     return
 
                 # can't resume ourselves. double self, what does it mean?
                 if co == fun:
-                    REPL.softError("Can't resume ourselves. double self, what does it mean?")   # SO INTENSE
+                    REPL.softError("Can't resume ourselves...")         # SO INTENSE
                     return
 
                 co.corArg = lookup(e[3])
@@ -390,8 +390,8 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                     return
 
             else: raise SyntaxError("Illegal instruction: %s " % str(e))
-        except TypeError:
-            REPL.softError("Type error")
+        except TypeError, e:
+            REPL.softError("Type error: " + str(e))
             return
         except NameError:
             return
