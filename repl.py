@@ -129,7 +129,10 @@ class cs164bRepl:
             for k,v in suggestions.iteritems():
                 # pretty representation of functions - add others as needed
                 if isinstance(v, interpreter.FunVal):
-                    suggestions[k] = "function(" + reduce(lambda x,y: x+","+y, v.fun.argList) + ")"
+                    if v.fun.argList:
+                        suggestions[k] = "function(" + reduce(lambda x,y: x+","+y, v.fun.argList) + ")"
+                    else:
+                        suggestions[k] = "function()"
 
                 # string representation of a single entry
                 sugList.append(str(k) + ": " + str(suggestions[k]))
