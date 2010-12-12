@@ -53,11 +53,8 @@ if __name__ == '__main__':
         print "Please give one argument, the input filename."
         sys.exit(1)
 
-    cs164_grammar_file = './cs164b.grm'
     cs164_input_file = sys.argv[1]
     cs164_library_file = './library.164'
-
-    cs164parser = parser_generator.makeParser(grammar_parser.parse(open(cs164_grammar_file).read()))
 
     # Load library into the cs164interpreter
     loadProgram(cs164_library_file)

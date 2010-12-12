@@ -90,6 +90,9 @@ class EarleyParser:
         NEW = 1
         OLD = 2
 
+        ########################
+        ### HELPER FUNCTIONS ###
+        ########################
 
         # return (list,set) of edges 
         def edgesIncomingTo(dst,status):

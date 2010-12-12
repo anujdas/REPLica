@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import curses
 
 greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>."]
@@ -119,7 +120,7 @@ class cs164bRepl:
         box.addstr(1,1,s)
         box.touchwin()
         box.refresh()
-        
+
     def gracefulExit(self):
         curses.nocbreak() #de-initialize curses
         self.screen.keypad(0)
@@ -133,7 +134,7 @@ class cs164bRepl:
     def main(self):
         i = 0
         line = ""
-        
+
         #HERE BEGINS THE REPL
         #processes each line until we see "ctrl-d"
         while line != "exit\n":
@@ -167,8 +168,7 @@ class cs164bRepl:
                             line = line[:-1]
                             self.screen.delch(cursory,cursorx-1)
 
-                self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox)
-#               updateBox(self.curLineNumber+1, line, self.screen, self.infoBox)
+                self.updateBox(curLine+1, str(suggestions), self.screen, infoBox)
 
             self.parse_line(line[:-1])
 

@@ -13,6 +13,11 @@ def ExecGlobal(ast):
 def ExecGlobalStmt(ast,repl = None):
     Resume(bytecode(desugar([ast]))[1], globEnv, REPL=repl)
 
+# get tab-completion results for a given string fragment
+# TODO: look up through dictionaries, objects, builtins, etc.
+def complete(fragment, env=globEnv):
+    return map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
+
 # Abstract syntax of bytecode:
 #
 # ('=', lhs, rhs)                 --  lhs = rhs
