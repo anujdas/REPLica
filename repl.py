@@ -98,6 +98,11 @@ class cs164bRepl:
         self.curLineNumber += 1
         self.screen.addstr(self.curLineNumber, 0, s) # print the prompt
 
+    def updateCurrentLine(self, s):
+        width = self.screen.getmaxyx()[1] - 6
+        padding = width - len(PROMPTSTR)
+        self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s + padding * ' ')
+        self.screen.move(self.curLineNumber, len(PROMPTSTR) + len(s))
 
     #helper function to clear the info box
     def clearBox(self,box):
@@ -156,18 +161,24 @@ class cs164bRepl:
         i = 0
         line = ""
 
+        history = [""]
+        hist_ptr = 0
+
         #HERE BEGINS THE REPL
         #processes each line until we see "ctrl-d"
         while line != "exit\n":
 
             self.curLineNumber += 1
-            line = ""
-            i = 0
             self.clearBox(self.infoBox)
             if not self.cs164bparser.parsedepth:
-                self.screen.addstr(self.curLineNumber,0, PROMPTSTR) # print the prompt
+                self.screen.addstr(self.curLineNumber, 0, PROMPTSTR) # print the prompt
             else:
-                self.screen.addstr(self.curLineNumber,0, CONTINUESTR + self.cs164bparser.parsedepth * "   ") # print the secondary prompt
+                self.screen.addstr(self.curLineNumber, 0, CONTINUESTR) # print the secondary prompt
+
+            # handle indenting appropriately
+            line = "" + self.cs164bparser.parsedepth * "   "
+            self.updateCurrentLine(line)
+            i = 0
 
             # processes each character on this line
             while i != ord('\n') and i != ord(';'):
@@ -176,40 +187,59 @@ class cs164bRepl:
                 i = self.screen.getch() #get next char
                 suggestions = {}
 
-                if i>=0 and i < 127:
-                    if (i == 4): #exit on EOF (ctrl+d)
-                        self.gracefulExit()
+                if i >= 32 and i < 127:                         # printable characters
                     self.screen.addch(i)
-                    line += chr(i) #add to the current buffer
+                    line += chr(i)                              # add to the current buffer
+                    hist_ptr = 0
+                    history[hist_ptr] = line                    # and save the line so far
                     try:
                         lineTokens = self.cs164bparser.tokenize(line)
                         if lineTokens:
                             suggestions = dict(interpreter.complete(lineTokens[-1]))
                     except NameError, e:
-                        lineTokens = [] #TODO color line red
+                        lineTokens = []                         #TODO color line red
 
-                else:
-                    if (i == 127 or i==curses.KEY_BACKSPACE): #handle backspace properly
-                        cursory, cursorx = self.screen.getyx()
-                        if (cursorx > len(PROMPTSTR)): #but don't delete the prompt
-                            line = line[:-1]
-                            try:
-                                lineTokens = self.cs164bparser.tokenize(line)
-                                if lineTokens:
-                                    suggestions = dict(interpreter.complete(lineTokens[-1]))
-                            except NameError, e:
-                                lineTokens = [] #TODO color line red
-                            self.screen.delch(cursory,cursorx-1)
-                    elif i == curses.KEY_UP:
-                        1   # do some history-related stuff here
-                    elif i == curses.KEY_DOWN:
-                        1   # do some history-related stuff here
-                    elif i == curses.KEY_STAB:
-                        1   # do some tab-related stuff here, maybe?
+                elif i == ord('\n') or i == ord(';'):           # EOL characters
+                    self.screen.addch(i)
+                    line += chr(i) #add to the current buffer
+
+                elif (i == 127 or i == curses.KEY_BACKSPACE):   # handle backspace properly, plus a hack for mac
+                    cursory, cursorx = self.screen.getyx()
+                    if (cursorx > len(PROMPTSTR)):              # but don't delete the prompt
+                        line = line[:-1]
+                        try:
+                            lineTokens = self.cs164bparser.tokenize(line)
+                            if lineTokens:
+                                suggestions = dict(interpreter.complete(lineTokens[-1]))
+                        except NameError, e:
+                            lineTokens = []                     # TODO color line red
+                        self.screen.delch(cursory,cursorx-1)
+
+                elif i == curses.KEY_UP:
+                    if hist_ptr < len(history) - 1:
+                        if hist_ptr == 0:
+                            history[hist_ptr] = line            # save the line so far, if it's new
+                        hist_ptr = hist_ptr + 1                 # go back in time WHHOOOOOHHHO
+                        line = history[hist_ptr]
+                        self.updateCurrentLine(line)
+
+                elif i == curses.KEY_DOWN:
+                    if hist_ptr > 0:                            # if we can go forward, do so
+                        hist_ptr = hist_ptr - 1
+                        line = history[hist_ptr]
+                        self.updateCurrentLine(line)
+
+                elif i == 9:                                    # horizontal tab
+                    1   # do some tab-related stuff here, maybe?
+
+                elif (i == 4):                                  # exit on EOF (ctrl+d)
+                    self.gracefulExit()
 
                 self.showSuggestions(suggestions)
 
             self.parse_line(line[:-1])
+            hist_ptr = 0
+            history.insert(hist_ptr, line[:-1])
 
 
 if __name__ == "__main__":
