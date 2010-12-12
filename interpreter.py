@@ -10,6 +10,8 @@ cs164parser = None
 
 def ExecGlobal(ast):
     Resume(bytecode(desugar(ast))[1], globEnv)
+def ExecGlobalStmt(ast):
+    Resume(bytecode(desugar([ast]))[1], globEnv)
 
 # Abstract syntax of bytecode:
 #

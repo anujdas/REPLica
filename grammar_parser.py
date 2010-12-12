@@ -34,9 +34,9 @@ class Tokenizer:
         ignoring whitespace and comments.
         Returns the part of the input that matches, or None if there is
         no match.
-        
+
         REGEX can be either a String or compiled regular expression.
-        
+
         If there is a match, updates the current position within
         the input string.
         '''
@@ -102,7 +102,7 @@ def parse (spec, filename='stdin'):
     def G ():
         while Declaration ():
             pass
-        
+
         if not lexer.token ('%%'):
             error ('"%%" must separate declarations from rules')
 
@@ -181,15 +181,14 @@ def parse (spec, filename='stdin'):
         rule = grammar.Rule (stack.pop ())
         if not Production ():
             error ('rule "{0}" has no productions'.format(rule.lhs))
-        (rhs, actions, prec, assoc) = stack.pop ()
-        rule.addProduction (rhs=rhs, actions=actions, prec=prec, assoc=assoc)
+        (rhs, actions, prec, assoc, subsym) = stack.pop ()
+        rule.addProduction (rhs=rhs, actions=actions, prec=prec, assoc=assoc, subsym=subsym)
 
         while lexer.token (r'\|'):
             if not Production ():
                 error ('(%s) "|" must be followed by a production'% (rule.lhs))
-            (rhs, actions, prec, assoc) = stack.pop ()
-            rule.addProduction (rhs=rhs, actions=actions, prec=prec,
-                                assoc=assoc)
+            (rhs, actions, prec, assoc, subsym) = stack.pop ()
+            rule.addProduction (rhs=rhs, actions=actions, prec=prec, assoc=assoc, subsym=subsym)
 
         if not lexer.token (';'):
             error ('(%s) rules must be ended by ";"'% (rule.lhs))
@@ -200,19 +199,21 @@ def parse (spec, filename='stdin'):
     def Production ():
         if not (EmptyProd () or NonEmptyProd ()):
             return False
-        (rhs, prec, assoc, actions) = stack.pop ()
-        
+        (rhs, prec, assoc, actions, subsym) = stack.pop ()
+
         action = None
         if Action ():
             action = stack.pop ()
         actions.append (action)
-        stack.append ((rhs, actions, prec, assoc))
+        if subsym and len(rhs) > 1:     # can't subparse a multi-nonterminal RHS...
+            error ('"subparse" requires a one-element RHS, but you\'ve got %s' % rhs)
+        stack.append ((rhs, actions, prec, assoc, subsym))
         return True
 
     def EmptyProd ():
         if not Epsilon ():
             return False
-        stack.append (([stack.pop ()], -1, None, [None]))
+        stack.append (([stack.pop ()], -1, None, [None], False))
         return True
 
     def NonEmptyProd ():
@@ -223,6 +224,7 @@ def parse (spec, filename='stdin'):
         actions = [action]
         prec = -1
         assoc = None
+        subsym = False
         while ActionSymbol ():
             sym, action = stack.pop ()
             rhs.append (sym)
@@ -231,7 +233,9 @@ def parse (spec, filename='stdin'):
             prec = stack.pop ()
         elif TempAssocDecl ():
             assoc = stack.pop ()
-        stack.append ((rhs, prec, assoc, actions))
+        elif SubParse ():
+            subsym = stack.pop ()
+        stack.append ((rhs, prec, assoc, actions, subsym))
         return True
 
     def ActionSymbol ():
@@ -258,7 +262,13 @@ def parse (spec, filename='stdin'):
         if not lexer.token ('%prec'):
             return False
         if not Terminal ():
-            error ('"prec" decls require a nonterminal')
+            error ('"prec" decls require a terminal')
+        return True
+
+    def SubParse ():
+        if not lexer.token ('%subparse'):
+            return False
+        stack.append (True)
         return True
 
     def Symbol ():
@@ -339,7 +349,7 @@ B -> _ ;
 C -> A ;
 D -> %{ d-i-action %} E ;
 E -> D %{ e-s-action %} ;
-''' 
+'''
     G = parse (testGrammar)
     print 'Parsed grammar!'
     G.dump ()

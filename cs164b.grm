@@ -10,13 +10,6 @@
 
 %%
 
-P       ->  n_                          %{ return [] %}
-        |   n_ Pn n_                    %{ return n2.val %}
-        ;
-Pn      ->  S                           %{ return [n1.val] %}
-        |   Pn n S                      %{ return n1.val + [n3.val] %}
-        ;
-
 S       ->  E                           %{ return ('exp', n1.val) %}
         |   id '=' E                    %{ return ('asgn', n1.val, n3.val) %}
         |   'def' id '=' E              %{ return ('def', n2.val, n4.val) %}
@@ -31,6 +24,16 @@ S       ->  E                           %{ return ('exp', n1.val) %}
         |   'while' '(' E ')' '{' P '}' %{ return ('while', n3.val, n6.val) %}
         |   'for' '(' id 'in' E ')' '{' P '}'           %{ return ('for', n3.val, n5.val, n8.val) %}
         |   'for' id 'in' E '{' P '}'   %{ return ('for', n2.val, n4.val, n6.val) %}
+        ;
+
+S_      ->  S                           %subparse %{ return n1.val %}
+        ;
+
+P       ->  n_                          %{ return [] %}
+        |   n_ Pn n_                    %{ return n2.val %}
+        ;
+Pn      ->  S_                          %{ return [n1.val] %}
+        |   Pn n S_                     %{ return n1.val + [n3.val] %}
         ;
 
 E       ->  'null'                      %dprec 0 %{ return ('null',) %}
