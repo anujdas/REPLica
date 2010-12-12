@@ -27,10 +27,12 @@ class cs164bRepl:
             self.screen.addstr(i,0, greetings[i])
         self.curLineNumber = len(greetings)-1
         cs164grammarFile = './cs164b.grm'
-        self.parser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
-        self.terminals = self.parser.terminals
-        self.newline = self.parser.tokenize("\n")
+        self.cs164bparser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
+        self.terminals = self.cs164bparser.terminals
+        self.newline = self.cs164bparser.tokenize("\n")
         #self.color_mapping = {}
+        self.parser = self.cs164bparser.parse()
+        self.parser.next()
 
     def init_colors(self):
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
@@ -68,30 +70,28 @@ class cs164bRepl:
 
 
     def parse_line(self,line):
-        parser = self.parser.parse()
-        parser.next()
         try:
-            tokens = self.parser.tokenize(line)
+            tokens = self.cs164bparser.tokenize(line)
             if tokens:                              # no need to consume non-code lines
-                input_ast = parser.send(tokens)     # parse this line
+                input_ast = self.parser.send(tokens)     # parse this line
                 if type(input_ast) == tuple:        # parsing completed on this line; execute result
                     interpreter.ExecGlobalStmt(input_ast,self)
 
                     # create and prep a new parser instance
-                    parser = self.parser.parse()
-                    parser.next()
+                    self.parser = self.cs164bparser.parse()
+                    self.parser.next()
 
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
             self.printLine("Error while tokenizing line: " + line)
             self.printLine(e.msg)
-            parser = self.parser.parse()
-            parser.next()
+            self.parser = self.cs164bparser.parse()
+            self.parser.next()
         except SyntaxError, e:
             self.printLine("Error while parsing line: " + line)
             self.printLine(e.msg)
-            parser = self.parser.parse()
-            parser.next()
+            self.parser = self.cs164bparser.parse()
+            self.parser.next()
 
     def printLine(self,s):
         self.clearBox(self.infoBox)
@@ -158,7 +158,7 @@ class cs164bRepl:
                     line += chr(i) #add to the current buffer
                     suggestions = ""
                     try:
-                        lineTokens = self.tokenize(line)
+                        lineTokens = self.cs164bparser.tokenize(line)
                         suggestions = dict(interpreter.complete(lineTokens[-1]))
                     except NameError, e:
                         lineTokens = [] #TODO color line red
