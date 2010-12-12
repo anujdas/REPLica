@@ -98,6 +98,13 @@ class cs164bRepl:
         self.curLineNumber += 1
         self.screen.addstr(self.curLineNumber, 0, s) # print the prompt
 
+    def init_colors(self):
+        curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK) #errors
+        curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_WHITE) #keywords
+        curses.init_pair(3, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_WHITE)
+        curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        
     def updateCurrentLine(self, s):
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
@@ -184,7 +191,10 @@ class cs164bRepl:
             while i != ord('\n') and i != ord(';'):
 
                 self.screen.refresh()
-                i = self.screen.getch() #get next char
+                try:
+                    i = self.screen.getch() #get next char
+                except KeyboardInterrupt:
+                    i = ord('\n')
                 suggestions = {}
 
                 if i >= 32 and i < 127:                         # printable characters
