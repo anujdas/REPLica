@@ -284,9 +284,10 @@ class EarleyParser:
         for P in self.grammar[self.grammar.startSymbol].productions:
             addEdge((0,0,P,0))
 
-        # for all tokens on the input
-        # for j in xrange(0,len(inp)+1):    # the old way of doing things. there's a new sheriff in town, and his name is Coroutine.
+        # for all tokens on the input:
         j = 0
+
+        # keep going until we get a full completion edge
         done = False
         while not done:
             while j <= len(inp):
@@ -354,15 +355,15 @@ class EarleyParser:
                         if self.debug:
                             print e.message
                         util.error("My code is a snake, your python is invalid.")
-                    done = True
-                    yield v
+                    done = True         # no need to continue iterating
+                    yield v             # return the AST of this line, then quit
 
             # if we're not done yet, check to see if we can still continue
             if len(edgesIncomingTo(len(inp), inProgress)[0]) > 0:
                 line = (yield None)                 # if we can, wait for more input
                 inp = inp + line                    # and stick it on the end
             else:                                   # if there's no chance of going on, we're stuck.
-                for i in xrange(0,len(inp)+1):
+                for i in xrange(0,len(inp)+1):      # so search for the error position and report it.
                     if len(edgesIncomingTo(i, inProgress)[0]) == 0:
                         raise SyntaxError('Bad syntax at token %d: %s' % (i-1,inp[i-1][1]))
                 raise SyntaxError('Bad syntax at token %d: %s' % (j,inp[j][1]))
