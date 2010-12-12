@@ -63,7 +63,9 @@ class EarleyParser:
         self.terminals, self.invRenamedTerminals = EarleyParser.preprocess (gram)
         self.ambiguous = False      # status vars for each run of the parser
         self.resolved = True        # more status
-        self.subparser = None
+
+        self.subparser = None       # for later...
+        self.parsedepth = 0         # how many parsers in are we?
 
         self.debug = False
         self.drawGraph = False
@@ -124,7 +126,6 @@ class EarleyParser:
             """Add edge to graph and worklist if not present in graph already.
             Return True iff the edge was actually inserted
             """
-            incr(0)
             # edge to key
             src, dst, P, pos = e
             status = complete if len(P.RHS) == pos else inProgress
@@ -282,6 +283,7 @@ class EarleyParser:
         # put this here for the initial next() call required by Python coroutines
         line = (yield "Prepped for parse-off, cap'n!")
         inp = line
+        self.parsedepth = self.parsedepth + 1
 
         # Add edge (0,0,(S -> . alpha)) to worklist, for all S -> alpha
         for P in self.grammar[self.grammar.startSymbol].productions:
@@ -323,7 +325,8 @@ class EarleyParser:
                         for (k,_i,Q,pos2) in edgesIncomingTo(i,inProgress)[0]:
                             assert _i==i and pos2 < len(Q.RHS)
                             if Q.RHS[pos2]==P.LHS:
-                                edgeWasInserted = addEdge((k,j,Q,pos2+1), (k,i,Q,pos2), (i,j,P,pos)) or edgeWasInserted
+                                edgeInsertedNow = addEdge((k,j,Q,pos2+1), (k,i,Q,pos2), (i,j,P,pos))
+                                edgeWasInserted = edgeInsertedNow or edgeWasInserted
 
                     # PREDICT what the parser is to see on input (move dots in edges that are in progress)
                     # for each edge (i,j,N -> alpha . M beta)
@@ -337,7 +340,8 @@ class EarleyParser:
                             M = P.RHS[pos]
                             # prediction: for all rules D->alpha add edge (j,j,.alpha)
                             for P in self.grammar[M].productions:
-                                edgeWasInserted = addEdge((j,j,P,0)) or edgeWasInserted
+                                edgeInsertedNow = addEdge((j,j,P,0))
+                                edgeWasInserted = edgeInsertedNow or edgeWasInserted
 
                 # remember to advance in the input
                 j = j + 1
@@ -357,7 +361,8 @@ class EarleyParser:
                     except Exception, e:
                         if self.debug:
                             print e.message
-                        util.error("My code is a snake, your python is invalid.")
+                        util.error("My code is a snake, your Python is invalid.")
+                    self.parsedepth = self.parsedepth - 1
                     done = True         # no need to continue iterating
                     yield v             # return the AST of this line, then quit
 
@@ -366,6 +371,7 @@ class EarleyParser:
                 line = (yield None)                 # if we can, wait for more input
                 inp = inp + line                    # and stick it on the end
             else:                                   # if there's no chance of going on, we're stuck.
+                self.parsedepth = self.parsedepth - 1
                 for i in xrange(0,len(inp)+1):      # so search for the error position and report it.
                     if len(edgesIncomingTo(i, inProgress)[0]) == 0:
                         raise SyntaxError('Bad syntax at token %d: %s' % (i-1,inp[i-1][1]))
@@ -394,13 +400,13 @@ class EarleyParser:
                 if matchLHS:  tokens.append ((matchLHS, matchText))
                 break
             elif pos == matchEnd:       # 0-length match
-                raise Exception, pos
+                raise NameError, pos
             elif matchLHS is None:      # 'Ignore' tokens
                 pass
             elif matchLHS:              # Valid token
                 tokens.append ((matchLHS, matchText))
             else:                       # no match
-                raise Exception, str(pos) + ": " + str(inp[max(pos-5,0):min(pos+5,len(inp))])
+                raise NameError, str(pos) + ": " + str(inp[max(pos-5,0):min(pos+5,len(inp))])
 
             pos = matchEnd
 
@@ -568,41 +574,6 @@ class EarleyParser:
         except Exception, e:
             util.error ("""couldn't create semantic function: """ + str(e))
             sys.exit(1)
-
-    @staticmethod
-    def __isTermSymbol (sym):
-        '''Return TRUE iff SYM is a 'virtual' nonterminal for a
-        terminal symbol, created during grammar normalization.
-        '''
-        return sym[0] == EarleyParser.TERM_PFX
-
-
-    @staticmethod
-    def dumpEdges (edges):
-        '''Print a representation of the edge set EDGES to stdout.'''
-        for sym, frm, to in edges:
-            print '(%d)--%s--(%d)'% (frm, sym, to)
-
-
-    @staticmethod
-    def dumpTree (tree, edges, level=0):
-        '''Print a representation of the parse tree TREE to stdout.'''
-        sym, frm, to = tree[0:3]
-        if len (tree) > 3:
-            children = tree[3]
-        else:
-            children = edges[(sym, frm, to)][3]
-        if (isinstance (children, types.StringType) or
-            children is grammar.Grammar.EPSILON):
-            print '%s%s "%s")'% ('-'*level*2, sym, children)
-        else:
-            print '%s%s %d-%d'% ('-'*level*2, sym, frm, to)
-            for child in children:
-                EarleyParser.dumpTree (child, edges, level + 1)
-
-# For instrumentation 
-def incr(id):
-    pass
 
 if __name__ == '__main__':
     pass

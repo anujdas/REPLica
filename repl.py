@@ -2,7 +2,8 @@
 import curses
 
 greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>."]
-PROMPTSTR = "cs164b>"
+PROMPTSTR =   "cs164b> "
+CONTINUESTR = "    ... "
 
 #TODO: ;, #, colors
 
@@ -111,7 +112,7 @@ class cs164bRepl:
     #	scr: the current curses window object
     #	box: the box's curses window object
 
-    def updateBox (self, lineNum, s, scr,box):
+    def updateBox(self, lineNum, s, scr, box):
         self.clearBox(box)
         width = self.screen.getmaxyx()[1]-6
         height = 3
@@ -120,6 +121,10 @@ class cs164bRepl:
         box.addstr(1,1,s)
         box.touchwin()
         box.refresh()
+
+    def formatSuggestions(self, suggestions):
+        width = self.screen.getmaxyx()[1]-6
+        return str(suggestions) if suggestions else ""
 
     def gracefulExit(self):
         curses.nocbreak() #de-initialize curses
@@ -143,46 +148,44 @@ class cs164bRepl:
             line = ""
             i = 0
             self.clearBox(self.infoBox)
-            self.screen.addstr(self.curLineNumber,0, PROMPTSTR) # print the prompt
+            if not self.cs164bparser.parsedepth:
+                self.screen.addstr(self.curLineNumber,0, PROMPTSTR) # print the prompt
+            else:
+                self.screen.addstr(self.curLineNumber,0, CONTINUESTR + self.cs164bparser.parsedepth * "   ") # print the secondary prompt
 
             # processes each character on this line
             while i != ord('\n') and i != ord(';'):
 
                 self.screen.refresh()
                 i = self.screen.getch() #get next char
+                suggestions = ""
 
                 if i>=0 and i < 127:
                     if (i == 4): #exit on EOF (ctrl+d)
                         self.gracefulExit()
                     self.screen.addch(i)
                     line += chr(i) #add to the current buffer
-                    suggestions = ""
                     try:
                         lineTokens = self.cs164bparser.tokenize(line)
                         if lineTokens:
                             suggestions = dict(interpreter.complete(lineTokens[-1]))
                     except NameError, e:
                         lineTokens = [] #TODO color line red
-                    if not suggestions:
-                        suggestions = ""
 
                 else:
                     if (i == 127 or i==curses.KEY_BACKSPACE): #handle backspace properly
                         cursory, cursorx = self.screen.getyx()
                         if (cursorx > len(PROMPTSTR)): #but don't delete the prompt
                             line = line[:-1]
-                            suggestions = ""
                             try:
                                 lineTokens = self.cs164bparser.tokenize(line)
                                 if lineTokens:
                                     suggestions = dict(interpreter.complete(lineTokens[-1]))
                             except NameError, e:
                                 lineTokens = [] #TODO color line red
-                            if not suggestions:
-                                suggestions = ""
                             self.screen.delch(cursory,cursorx-1)
 
-                self.updateBox(self.curLineNumber+1, str(suggestions), self.screen, self.infoBox)
+                self.updateBox(self.curLineNumber+1, self.formatSuggestions(suggestions), self.screen, self.infoBox)
 
             self.parse_line(line[:-1])
 

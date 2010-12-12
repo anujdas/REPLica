@@ -48,6 +48,13 @@ def loadProgram(p_file):
             parser.next()
             first_line = True
 
+# handy copypasta:
+#cs164_grammar_file = './cs164b.grm'
+#cs164parser = parser_generator.makeParser(grammar_parser.parse(open(cs164_grammar_file).read())) 
+#t = cs164parser.tokenize  
+#parser = cs164parser.parse(); parser.next()         
+
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         print "Please give one argument, the input filename."
