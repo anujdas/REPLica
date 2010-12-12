@@ -21,7 +21,7 @@ class cs164bRepl:
         self.screen.clear()
         self.screen.leaveok(False)
         self.infoBox = 0
-        
+
         #print the greeting and adjust the current line accordingly
         for i in range(len(greetings)):
             self.screen.addstr(i,0, greetings[i])
@@ -127,7 +127,7 @@ class cs164bRepl:
         curses.echo()
         curses.endwin()
         sys.exit(0)
-        
+
     def softError(self,s):
         self.printLine("Error: " + s)
 
@@ -156,10 +156,14 @@ class cs164bRepl:
                         self.gracefulExit()
                     self.screen.addch(i)
                     line += chr(i) #add to the current buffer
+                    suggestions = ""
                     try:
                         lineTokens = self.tokenize(line)
+                        suggestions = dict(interpreter.complete(lineTokens[-1]))
                     except NameError, e:
                         lineTokens = [] #TODO color line red
+                    if not suggestions:
+                        suggestions = ""
 
                 else:
                     if (i==curses.KEY_BACKSPACE): #handle backspace properly
@@ -168,7 +172,7 @@ class cs164bRepl:
                             line = line[:-1]
                             self.screen.delch(cursory,cursorx-1)
 
-                self.updateBox(curLine+1, str(suggestions), self.screen, infoBox)
+                self.updateBox(self.curLineNumber+1, str(suggestions), self.screen, self.infoBox)
 
             self.parse_line(line[:-1])
 
