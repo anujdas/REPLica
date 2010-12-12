@@ -151,7 +151,7 @@ class cs164bRepl:
                 self.screen.refresh()
                 i = self.screen.getch() #get next char
 
-                if i>=0 and i < 128:
+                if i>=0 and i < 127:
                     if (i == 4): #exit on EOF (ctrl+d)
                         self.gracefulExit()
                     self.screen.addch(i)
@@ -166,7 +166,7 @@ class cs164bRepl:
                         suggestions = ""
 
                 else:
-                    if (i==curses.KEY_BACKSPACE): #handle backspace properly
+                    if (i == 127 or i==curses.KEY_BACKSPACE): #handle backspace properly
                         cursory, cursorx = self.screen.getyx()
                         if (cursorx > len(PROMPTSTR)): #but don't delete the prompt
                             line = line[:-1]
