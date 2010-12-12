@@ -9,6 +9,22 @@ import sys, parser_generator, interpreter, grammar_parser
 
 class cs164bRepl:
     def __init__(self):
+        #initialize curses
+        self.screen = curses.initscr()
+        curses.start_color()
+        self.init_colors()
+        curses.noecho()
+        self.screen.keypad(1)
+        curses.curs_set(1)
+        curses.cbreak()
+        self.screen.clear()
+        self.screen.leaveok(False)
+        self.infoBox = 0
+        
+        #print the greeting and adjust the current line accordingly
+        for i in range(len(greetings)):
+            self.screen.addstr(i,0, greetings[i])
+        self.curLineNumber = len(greetings)-1
         cs164grammarFile = './cs164b.grm'
         self.parser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
         self.terminals = self.parser.terminals
@@ -16,7 +32,7 @@ class cs164bRepl:
         #self.color_mapping = {}
 
     def init_colors(self):
-	    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
+        curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
 
     def tokenize (self,inp):
         tokens = []
@@ -37,13 +53,13 @@ class cs164bRepl:
                 if matchLHS:  tokens.append ((matchLHS, matchText))
                 break
             elif pos == matchEnd:       # 0-length match
-                raise Exception, pos
+                raise NameError, str(pos) + ": " + str(inp[max(pos-5,0):min(pos+5,len(inp))])
             elif matchLHS is None:      # 'Ignore' tokens
                 pass
             elif matchLHS:              # Valid token
                 tokens.append ((matchLHS, matchText))
             else:                       # no match
-                raise Exception, str(pos) + ": " + str(inp[max(pos-15,0):min(pos+15,len(inp))])
+                raise NameError, str(pos) + ": " + str(inp[max(pos-5,0):min(pos+5,len(inp))])
 
             pos = matchEnd
 
@@ -58,20 +74,28 @@ class cs164bRepl:
             if tokens:                              # no need to consume non-code lines
                 input_ast = parser.send(tokens)     # parse this line
                 if type(input_ast) == tuple:        # parsing completed on this line; execute result
-                    interpreter.ExecGlobalStmt(input_ast)
+                    interpreter.ExecGlobalStmt(input_ast,self)
 
                     # create and prep a new parser instance
                     parser = self.parser.parse()
                     parser.next()
 
         # soft failure - if there's an error, print a helpful message and create a new parser
+        except NameError, e:
+            self.printLine("Error while tokenizing line: " + line)
+            self.printLine(e.msg)
+            parser = self.parser.parse()
+            parser.next()
         except SyntaxError, e:
-            print "Error while parsing line: " + line
-            print e.msg
+            self.printLine("Error while parsing line: " + line)
+            self.printLine(e.msg)
             parser = self.parser.parse()
             parser.next()
 
-
+    def printLine(self,s):
+        self.clearBox(self.infoBox)
+        self.curLineNumber += 1
+        self.screen.addstr(self.curLineNumber,0, s) # print the prompt
 
 
     #helper function to clear the info box
@@ -102,36 +126,23 @@ class cs164bRepl:
         curses.echo()
         curses.endwin()
         sys.exit(0)
+        
+    def softError(self,s):
+        self.printLine("Error: " + s)
 
     def main(self):
-        #initialize curses
-        self.screen = curses.initscr()
-        curses.start_color()
-        #COLORS = curses.has_colors()
-        self.init_colors()
-        curses.noecho()
-        self.screen.keypad(1)
-        curses.curs_set(1)
-        curses.cbreak()
-        self.screen.clear()
-        self.screen.leaveok(False)
-        infoBox = 0
         i = 0
         line = ""
-
-        #print the greeting and adjust the current line accordingly
-        for i in range(len(greetings)):
-            self.screen.addstr(i,0, greetings[i])
-        curLine = len(greetings)-1
+        
         #HERE BEGINS THE REPL
-        #processes each line until we see "exit"
+        #processes each line until we see "ctrl-d"
         while line != "exit\n":
 
-            curLine += 1
+            self.curLineNumber += 1
             line = ""
             i = 0
-            self.clearBox(infoBox)
-            self.screen.addstr(curLine,0, PROMPTSTR) # print the prompt
+            self.clearBox(self.infoBox)
+            self.screen.addstr(self.curLineNumber,0, PROMPTSTR) # print the prompt
 
             # processes each character on this line
             while i != ord('\n') and i != ord(';'):
@@ -144,7 +155,10 @@ class cs164bRepl:
                         self.gracefulExit()
                     self.screen.addch(i)
                     line += chr(i) #add to the current buffer
-                    lineTokens = self.tokenize(line)
+                    try:
+                        lineTokens = self.tokenize(line)
+                    except NameError, e:
+                        lineTokens = [] #TODO color line red
 
                 else:
                     if (i==curses.KEY_BACKSPACE): #handle backspace properly
@@ -153,8 +167,8 @@ class cs164bRepl:
                             line = line[:-1]
                             self.screen.delch(cursory,cursorx-1)
 
-                self.updateBox(curLine+1, str(lineTokens), self.screen, infoBox)
-#               updateBox(curLine+1, line, self.screen, infoBox)
+                self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox)
+#               updateBox(self.curLineNumber+1, line, self.screen, self.infoBox)
 
             self.parse_line(line[:-1])
 

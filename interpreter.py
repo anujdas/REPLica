@@ -10,8 +10,8 @@ cs164parser = None
 
 def ExecGlobal(ast):
     Resume(bytecode(desugar(ast))[1], globEnv)
-def ExecGlobalStmt(ast):
-    Resume(bytecode(desugar([ast]))[1], globEnv)
+def ExecGlobalStmt(ast,repl = None):
+    Resume(bytecode(desugar([ast]))[1], globEnv, REPL=repl)
 
 # Abstract syntax of bytecode:
 #
@@ -83,7 +83,7 @@ def bytecode(e):
             if e[0] == 'call':
                 if e[1] == ('var', 'type'):
                     if len(e[2]) != 1:      # since 'type' is a hack, we need to validate args
-                        print "Error"       # explicitly, rather than relying on the interpreter
+                        REPL.softError("Error")       # explicitly, rather than relying on the interpreter
                         sys.exit(-1)
                     else:
                         return bc(('type', e[2][0]), t)
@@ -159,7 +159,7 @@ def ExecString(code, args):
 
 # This is the main function of the bytecode interpreter.
 # Error handling is missing from the skeleton.
-def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
+def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None):
     """ Arguments represent the state of the coroutine (as well as of the main program)
         stmts: array of bytecodes, pc: index into stmts where the execution should (re)start
         callStack: the stack of calling context of calls pending in the coroutine
@@ -171,15 +171,15 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
             elif env["__up__"]:
                 return _lookup(name, env["__up__"])
             else:
-                print "Error"
-                sys.exit(-1)
+                REPL.softError("No such variable: " + name)
+                raise NameError
         return _lookup(name, env)
     def lookupObject(obj, var):
         if var in obj:
             return obj[var]
-        elif not obj['__mt']:
-            print "Error"
-            sys.exit(-1)
+        elif '__mt' not in obj or not obj['__mt']:
+            REPL.softError("No such attribute " + var + " in " + obj)
+            raise NameError
         else:
             return lookupObject(obj['__mt'], var)
     def update(name,val):
@@ -189,8 +189,8 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
             elif env["__up__"]:
                 _update(name, env["__up__"], val)
             else:
-                print "Error"
-                sys.exit(-1)
+                REPL.softError("Couldn't update variable: " + name)
+                raise NameError
         _update(name, env, val)
     def define(name,val):
         env[name] = val
@@ -204,8 +204,8 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
         define(lhsVar, fun.corArg)
 
     if pc == -1:
-        print "Error"       # this is a coroutine that has ended
-        sys.exit(-1)
+        REPL.softError("This coroutine has terminated already!")       # this is a coroutine that has ended
+        return
 
     while True:
 
@@ -218,14 +218,14 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
             elif e[0] == 'def':    define(e[1], e[2] if type(e[2])==type(1) else lookup(e[2]))
             elif e[0] == 'print':
                 if lookup(e[1]) != None:
-                    print lookup(e[1]) #TODO change to REPLprints
+                    REPL.printLine(str(lookup(e[1])))
                 else:
-                    print "null"
+                    REPL.printLine("null")
             elif e[0] == 'error':
                 if lookup(e[1]) != None:
-                    print lookup(e[1])
+                    REPL.printLine(str(lookup(e[1])))
                 else:
-                    print "null"
+                    REPL.printLine("null")
                 sys.exit(-1)
             elif e[0] == '+':
                 if type(lookup(e[2])) == type(lookup(e[3])) == type(0):
@@ -238,8 +238,8 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
                 if lookup(e[3]) != 0:
                     define(e[1], lookup(e[2]) / lookup(e[3]))
                 else:
-                    print "Error"
-                    sys.exit(-1)
+                    REPL.softError("Dividing by zero is a no-no")
+                    return
             elif e[0] == '==':     define(e[1], 1 if (lookup(e[2]) == lookup(e[3])) else 0)
             elif e[0] == '!=':     define(e[1], 1 if (lookup(e[2]) != lookup(e[3])) else 0)
             elif e[0] == '<=':     define(e[1], 1 if (lookup(e[2]) <= lookup(e[3])) else 0)
@@ -274,9 +274,8 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
                 try:
                     ret = eval(e[2] + '.' + e[3])(**args) if args else eval(e[2] + '.' + e[3])()
                 except Exception, e:
-                    print "Error"       # Native call failed; exit "gracefully" (aka DIE IN A FIRE)
-                    print >> sys.stderr, e
-                    sys.exit(-1)
+                    REPL.softError("Native call failed with error: \n    " + str(e))       # Native call failed; exit "gracefully" (aka DIE IN A FIRE)
+                    return
                 if type(ret) == type(()) or type(ret) == type([]):
                     ret = dict(zip(range(len(ret)), ret))
                 define(e[1], ret)
@@ -289,16 +288,16 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
                 func    = lookup(e[2])
 
                 if not isinstance(func, FunVal):
-                    print "Error"   # not a function :(
-                    sys.exit(-1)
+                    REPL.softError("%s is not a function." % e[2])   # not a function :(
+                    return
 
                 fbody   = func.fun.body
                 fenv    = func.env
 
                 # look up arguments in the current environment frame; save them for later
                 if len(e[3]) != len(func.fun.argList):
-                    print "Error"   # wrong number of args
-                    sys.exit(-1)
+                    REPL.softError("Expected %d args, got %d." % (len(func.fun.argList), len(e[3])))   # wrong number of args
+                    return
 
                 argList = []
                 for i in range(len(func.fun.argList)):
@@ -337,8 +336,8 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
 
                 # error check - needs to be a function
                 if not isinstance(funcdef, FunVal) or funcdef.coroutine:
-                    print "Error"   # not a function :(
-                    sys.exit(-1)
+                    REPL.softError("Can't wrap a non-function %s in a coroutine" % e[2] )   # not a function :(
+                    return
 
                 # copy the env, so we don't clobber the lambda
                 func = FunVal(funcdef.fun, addScope(funcdef.env), True)
@@ -358,13 +357,13 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
 
                 # error check
                 if not isinstance(co, FunVal) or not co.coroutine:
-                    print "Error"   # not a coroutine :(
-                    sys.exit(-1)
+                    REPL.softError("%s is not a coroutine." % e[2])   # not a coroutine :(
+                    return
 
                 # can't resume ourselves. double self, what does it mean?
                 if co == fun:
-                    print "Error"   # SO INTENSE
-                    sys.exit(-1)
+                    REPL.softError("Can't resume ourselves. double self, what does it mean?")   # SO INTENSE
+                    return
 
                 co.corArg = lookup(e[3])
                 define(e[1], Resume(co.fun.body, co.env, fun=co))
@@ -382,13 +381,15 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None):
                     # FOR GREAT RETURN
                     return lookup(e[2])
                 else:
-                    print "Error"       # don't yield the main! DON'T YIELD THE MAIN!
-                    sys.exit(-1)
+                    REPL.softError("Not in a coroutine, can't yield!")       # don't yield the main! DON'T YIELD THE MAIN!
+                    return
 
             else: raise SyntaxError("Illegal instruction: %s " % str(e))
         except TypeError:
-            print "Error"
-            sys.exit(-1)
+            REPL.softError("Type error")
+            return
+        except NameError:
+        	return
     return NeverReached
 
 def desugar(ast):
