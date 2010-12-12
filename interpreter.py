@@ -194,7 +194,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
             elif env["__up__"]:
                 _update(name, env["__up__"], val)
             else:
-                REPL.softError("Couldn't update variable: " + name)
+                REPL.softError("Can't assign value to uninitialized variable: " + name)
                 raise NameError
         _update(name, env, val)
     def define(name,val):
@@ -293,7 +293,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                 func    = lookup(e[2])
 
                 if not isinstance(func, FunVal):
-                    REPL.softError("%s is not a function." % e[2])   # not a function :(
+                    REPL.softError("Can't call that; not a function.")   # not a function :(
                     return
 
                 fbody   = func.fun.body
