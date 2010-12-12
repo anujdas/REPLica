@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-import curses
+import curses, sys, textwrap
+import parser_generator, interpreter, grammar_parser
 
 greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>."]
 PROMPTSTR =   "cs164b> "
 CONTINUESTR = "    ... "
 
 #TODO: ;, #, colors
-
-import sys, parser_generator, interpreter, grammar_parser
 
 class cs164bRepl:
     def __init__(self):
@@ -97,7 +96,7 @@ class cs164bRepl:
     def printLine(self,s):
         self.clearBox(self.infoBox)
         self.curLineNumber += 1
-        self.screen.addstr(self.curLineNumber,0, s) # print the prompt
+        self.screen.addstr(self.curLineNumber, 0, s) # print the prompt
 
 
     #helper function to clear the info box
@@ -106,25 +105,39 @@ class cs164bRepl:
         self.screen.touchwin()
         self.screen.refresh()
 
-    #update the info box.
+    # update the info box.
     #	lineNum: line number that the box should appear on
     #	s: string to display in the box
     #	scr: the current curses window object
     #	box: the box's curses window object
-
     def updateBox(self, lineNum, s, scr, box):
         self.clearBox(box)
-        width = self.screen.getmaxyx()[1]-6
-        height = 3
+        width = self.screen.getmaxyx()[1] - 6
+        s = textwrap.wrap(s, width - 4)
+        height = 2 + len(s)
         box = curses.newwin(height,width,lineNum,5)
         box.border(0)
-        box.addstr(1,1,s)
+        for line in xrange(1, len(s)+1):
+            box.addstr(line, 1, s[line-1])
         box.touchwin()
         box.refresh()
 
-    def formatSuggestions(self, suggestions):
-        width = self.screen.getmaxyx()[1]-6
-        return str(suggestions) if suggestions else ""
+    def showSuggestions(self, suggestions):
+        if suggestions:
+            width = self.screen.getmaxyx()[1] - 6
+            sugList = []
+            for k,v in suggestions.iteritems():
+                # pretty representation of functions - add others as needed
+                if isinstance(v, interpreter.FunVal):
+                    suggestions[k] = "function(" + reduce(lambda x,y: x+","+y, v.fun.argList) + ")"
+
+                # string representation of a single entry
+                sugList.append(str(k) + ": " + str(suggestions[k]))
+            suggestions = reduce(lambda x,y: x + "\t\t\t" + y, sugList)
+            self.updateBox(self.curLineNumber+1, suggestions, self.screen, self.infoBox)
+        else:
+            self.updateBox(self.curLineNumber+1, "", self.screen, self.infoBox)
+            self.clearBox(self.infoBox)
 
     def gracefulExit(self):
         curses.nocbreak() #de-initialize curses
@@ -158,7 +171,7 @@ class cs164bRepl:
 
                 self.screen.refresh()
                 i = self.screen.getch() #get next char
-                suggestions = ""
+                suggestions = {}
 
                 if i>=0 and i < 127:
                     if (i == 4): #exit on EOF (ctrl+d)
@@ -184,8 +197,14 @@ class cs164bRepl:
                             except NameError, e:
                                 lineTokens = [] #TODO color line red
                             self.screen.delch(cursory,cursorx-1)
+                    elif i == curses.KEY_UP:
+                        1   # do some history-related stuff here
+                    elif i == curses.KEY_DOWN:
+                        1   # do some history-related stuff here
+                    elif i == curses.KEY_STAB:
+                        1   # do some tab-related stuff here, maybe?
 
-                self.updateBox(self.curLineNumber+1, self.formatSuggestions(suggestions), self.screen, self.infoBox)
+                self.showSuggestions(suggestions)
 
             self.parse_line(line[:-1])
 
