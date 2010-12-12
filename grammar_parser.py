@@ -205,13 +205,15 @@ def parse (spec, filename='stdin'):
         if Action ():
             action = stack.pop ()
         actions.append (action)
+        if subsym and len(rhs) > 1:     # can't subparse a multi-nonterminal RHS...
+            error ('"subparse" requires a one-element RHS, but you\'ve got %s' % rhs)
         stack.append ((rhs, actions, prec, assoc, subsym))
         return True
 
     def EmptyProd ():
         if not Epsilon ():
             return False
-        stack.append (([stack.pop ()], -1, None, [None], None))
+        stack.append (([stack.pop ()], -1, None, [None], False))
         return True
 
     def NonEmptyProd ():
@@ -222,7 +224,7 @@ def parse (spec, filename='stdin'):
         actions = [action]
         prec = -1
         assoc = None
-        subsym = None
+        subsym = False
         while ActionSymbol ():
             sym, action = stack.pop ()
             rhs.append (sym)
@@ -231,7 +233,7 @@ def parse (spec, filename='stdin'):
             prec = stack.pop ()
         elif TempAssocDecl ():
             assoc = stack.pop ()
-        elif SubParser ():
+        elif SubParse ():
             subsym = stack.pop ()
         stack.append ((rhs, prec, assoc, actions, subsym))
         return True
@@ -263,11 +265,10 @@ def parse (spec, filename='stdin'):
             error ('"prec" decls require a terminal')
         return True
 
-    def SubParser ():
+    def SubParse ():
         if not lexer.token ('%subparse'):
             return False
-        if not Nonterminal ():
-            error ('"subparse" decls require a nonterminal')
+        stack.append (True)
         return True
 
     def Symbol ():

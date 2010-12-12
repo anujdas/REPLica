@@ -68,20 +68,7 @@ class EarleyParser:
         self.debug = False
         self.drawGraph = False
 
-    def parse(self, inp):
-
-        if self.drawGraph: #init
-            gviz = null
-            for i in xrange(100):   # avoid clobbering existing graphs
-                if not os.path.isfile('graph-' + str(i) + '.dot'):
-                    gviz = open('graph-' + str(i) + '.dot', 'w')
-                    gviz.write('digraph G {\nrankdir="TB";')
-                    break
-            if gviz is null:
-                print "Too many graphs; delete some, try again."
-                print "No more graphs will be drawn for this run."
-                self.drawGraph = False
-
+    def parse(self):
         # The graph is partioned by (destination,completenessStatus) of edges.
         # The graph is thus a dictionary with the key (dst,complete).
         # Each key maps to a pair consisting of a list of edges as well as a set of edges.
@@ -102,6 +89,7 @@ class EarleyParser:
         # edge picked by disambiguation
         NEW = 1
         OLD = 2
+
 
         # return (list,set) of edges 
         def edgesIncomingTo(dst,status):
@@ -224,67 +212,6 @@ class EarleyParser:
             else:
                 return (OLD, True, False)        # FAILURE TO DISAMBIGUATE
 
-        if self.debug:
-            print "Before tokenization:"
-            print inp
-        # why isn't this tokenized for us, I kinda liked recognize...
-        inp = self.tokenize(inp)
-        if self.debug:
-            print "After tokenization:"
-            print inp
-            print "Terminals: ", self.invRenamedTerminals
-
-        # Add edge (0,0,(S -> . alpha)) to worklist, for all S -> alpha
-        for P in self.grammar[self.grammar.startSymbol].productions:
-            addEdge((0,0,P,0))
-
-        # for all tokens on the input
-        for j in xrange(0,len(inp)+1):
-
-            # skip in first iteration; we need to complete and predict the
-            # start nonterminal S before we start advancing over the input
-            if j > 0:
-                # ADVANCE across the next token:
-                # for each edge (i,j-1,N -> alpha . inp[j] beta)
-                #     add edge (i,j,N -> alpha inp[j] . beta)
-                if self.debug:
-                    print "*ADVANCE*"
-                for (i,_j,P,pos) in edgesIncomingTo(j-1,inProgress)[0]:
-                    assert _j==j-1
-                    if pos < len(P.RHS) and P.RHS[pos]==inp[j-1][0]:
-                        addEdge((i,j,P,pos+1), (i,_j,P,pos), inp[_j])
-
-            # Repeat COMPLETE and PREDICT until no more edges can be added
-            edgeWasInserted = True
-            while edgeWasInserted:
-                edgeWasInserted = False
-                # COMPLETE productions
-                # for each edge (i,j,N -> alpha .)
-                #    for each edge (k,i,M -> beta . N gamma)
-                #        add edge (k,j,M -> beta N . gamma)
-                if self.debug:
-                    print "*COMPLETE*"
-                for (i,_j,P,pos) in edgesIncomingTo(j,complete)[0]:
-                    assert _j==j and pos == len(P.RHS)
-                    for (k,_i,Q,pos2) in edgesIncomingTo(i,inProgress)[0]:
-                        assert _i==i and pos2 < len(Q.RHS)
-                        if Q.RHS[pos2]==P.LHS:
-                            edgeWasInserted = addEdge((k,j,Q,pos2+1), (k,i,Q,pos2), (i,j,P,pos)) or edgeWasInserted
-
-                # PREDICT what the parser is to see on input (move dots in edges that are in progress)
-                # for each edge (i,j,N -> alpha . M beta)
-                #     for each production M -> gamma
-                #          add edge (j,j,M -> . gamma)
-                if self.debug:
-                    print "*PREDICT*"
-                for (i,_j,P,pos) in edgesIncomingTo(j,inProgress)[0]:
-                    assert _j==j and pos < len(P.RHS)
-                    if P.RHS[pos][0] not in ('*','@'):  # non-terminals start with special chars
-                        M = P.RHS[pos]
-                        # prediction: for all rules D->alpha add edge (j,j,.alpha)
-                        for P in self.grammar[M].productions:
-                            edgeWasInserted = addEdge((j,j,P,0)) or edgeWasInserted
-
         def makeTree(e,i=1):
             n = i
             children = [x for x in getChildren(e) if x]
@@ -333,27 +260,112 @@ class EarleyParser:
                         toReturn.append(saObject(None,None,child[1]))
                 return toReturn
 
-        # input has been parsed OK if and only if an edge (0,n,S -> alpha .) exists
+        ######################
+        ### FUNCTION START ###
+        ######################
+
+        if self.drawGraph: #init
+            gviz = null
+            for i in xrange(100):   # avoid clobbering existing graphs
+                if not os.path.isfile('graph-' + str(i) + '.dot'):
+                    gviz = open('graph-' + str(i) + '.dot', 'w')
+                    gviz.write('digraph G {\nrankdir="TB";')
+                    break
+            if gviz is null:
+                print "Too many graphs; delete some, try again."
+                print "No more graphs will be drawn for this run."
+                self.drawGraph = False
+
+        # put this here for the initial next() call required by Python coroutines
+        line = (yield "Prepped for parse-off, cap'n!")
+        inp = line
+
+        # Add edge (0,0,(S -> . alpha)) to worklist, for all S -> alpha
         for P in self.grammar[self.grammar.startSymbol].productions:
-            if (0,len(inp),P,len(P.RHS)) in edgesIncomingTo(len(inp),complete)[1]:
+            addEdge((0,0,P,0))
 
-                if self.drawGraph:
-                    makeTree((0,len(inp),P,len(P.RHS)))
-                    gviz.write('}')
-                    gviz.close()
+        # for all tokens on the input
+        # for j in xrange(0,len(inp)+1):    # the old way of doing things. there's a new sheriff in town, and his name is Coroutine.
+        j = 0
+        done = False
+        while not done:
+            while j <= len(inp):
 
-                SDTree = saObject( P.actions[-1], doSDT( (0, len(inp), P, len(P.RHS))) )
-                try:
-                    v = SDTree.act().val
-                except Exception, e:
+                # skip in first iteration; we need to complete and predict the
+                # start nonterminal S before we start advancing over the input
+                if j > 0:
+                    # ADVANCE across the next token:
+                    # for each edge (i,j-1,N -> alpha . inp[j] beta)
+                    #     add edge (i,j,N -> alpha inp[j] . beta)
                     if self.debug:
-                        print e.message
-                    raise SyntaxError('Error')
-                    util.error("My code is a snake, your python is invalid.")
-                return v
+                        print "*ADVANCE*"
+                    for (i,_j,P,pos) in edgesIncomingTo(j-1,inProgress)[0]:
+                        assert _j==j-1
+                        if pos < len(P.RHS) and P.RHS[pos]==inp[j-1][0]:
+                            addEdge((i,j,P,pos+1), (i,_j,P,pos), inp[_j])
 
-        # INVALID /stamps string with red LOD
-        raise SyntaxError('Error')
+                # Repeat COMPLETE and PREDICT until no more edges can be added
+                edgeWasInserted = True
+                while edgeWasInserted:
+                    edgeWasInserted = False
+                    # COMPLETE productions
+                    # for each edge (i,j,N -> alpha .)
+                    #    for each edge (k,i,M -> beta . N gamma)
+                    #        add edge (k,j,M -> beta N . gamma)
+                    if self.debug:
+                        print "*COMPLETE*"
+                    for (i,_j,P,pos) in edgesIncomingTo(j,complete)[0]:
+                        assert _j==j and pos == len(P.RHS)
+                        for (k,_i,Q,pos2) in edgesIncomingTo(i,inProgress)[0]:
+                            assert _i==i and pos2 < len(Q.RHS)
+                            if Q.RHS[pos2]==P.LHS:
+                                edgeWasInserted = addEdge((k,j,Q,pos2+1), (k,i,Q,pos2), (i,j,P,pos)) or edgeWasInserted
+
+                    # PREDICT what the parser is to see on input (move dots in edges that are in progress)
+                    # for each edge (i,j,N -> alpha . M beta)
+                    #     for each production M -> gamma
+                    #          add edge (j,j,M -> . gamma)
+                    if self.debug:
+                        print "*PREDICT*"
+                    for (i,_j,P,pos) in edgesIncomingTo(j,inProgress)[0]:
+                        assert _j==j and pos < len(P.RHS)
+                        if P.RHS[pos][0] not in ('*','@'):  # non-terminals start with special chars
+                            M = P.RHS[pos]
+                            # prediction: for all rules D->alpha add edge (j,j,.alpha)
+                            for P in self.grammar[M].productions:
+                                edgeWasInserted = addEdge((j,j,P,0)) or edgeWasInserted
+
+                # remember to advance in the input
+                j = j + 1
+
+            # input has been parsed OK if and only if an edge (0,n,S -> alpha .) exists
+            for P in self.grammar[self.grammar.startSymbol].productions:
+                if (0,len(inp),P,len(P.RHS)) in edgesIncomingTo(len(inp),complete)[1]:
+
+                    if self.drawGraph:
+                        makeTree((0,len(inp),P,len(P.RHS)))
+                        gviz.write('}')
+                        gviz.close()
+
+                    SDTree = saObject( P.actions[-1], doSDT( (0, len(inp), P, len(P.RHS))) )
+                    try:
+                        v = SDTree.act().val
+                    except Exception, e:
+                        if self.debug:
+                            print e.message
+                        util.error("My code is a snake, your python is invalid.")
+                    done = True
+                    yield v
+
+            # if we're not done yet, check to see if we can still continue
+            if len(edgesIncomingTo(len(inp), inProgress)[0]) > 0:
+                line = (yield None)                 # if we can, wait for more input
+                inp = inp + line                    # and stick it on the end
+            else:                                   # if there's no chance of going on, we're stuck.
+                for i in xrange(0,len(inp)+1):
+                    if len(edgesIncomingTo(i, inProgress)[0]) == 0:
+                        raise SyntaxError('Bad syntax at token %d: %s' % (i-1,inp[i-1][1]))
+                raise SyntaxError('Bad syntax at token %d: %s' % (j,inp[j][1]))
 
     def tokenize (self, inp):
         '''Return the tokenized version of INP, a sequence of

@@ -71,7 +71,7 @@ class Rule:
     def __str__ (self):
         return '<grammar.Rule lhs="%s" ...>' % (self.lhs)
 
-    def addProduction (self, rhs, actions=None, prec=-1, assoc=None, subsym=None):
+    def addProduction (self, rhs, actions=None, prec=-1, assoc=None, subsym=False):
         '''Add a production self.lhs -> RHS, with an optional precedence,
         semantic action, and associativity override.
         '''

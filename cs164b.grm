@@ -26,7 +26,7 @@ S       ->  E                           %{ return ('exp', n1.val) %}
         |   'for' id 'in' E '{' P '}'   %{ return ('for', n2.val, n4.val, n6.val) %}
         ;
 
-S_      ->  S                           %subparse S %{ return n1.val %}
+S_      ->  S                           %subparse %{ return n1.val %}
         ;
 
 P       ->  n_                          %{ return [] %}
