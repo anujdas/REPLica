@@ -171,6 +171,15 @@ class cs164bRepl:
                         cursory, cursorx = self.screen.getyx()
                         if (cursorx > len(PROMPTSTR)): #but don't delete the prompt
                             line = line[:-1]
+                            suggestions = ""
+                            try:
+                                lineTokens = self.cs164bparser.tokenize(line)
+                                if lineTokens:
+                                    suggestions = dict(interpreter.complete(lineTokens[-1]))
+                            except NameError, e:
+                                lineTokens = [] #TODO color line red
+                            if not suggestions:
+                                suggestions = ""
                             self.screen.delch(cursory,cursorx-1)
 
                 self.updateBox(self.curLineNumber+1, str(suggestions), self.screen, self.infoBox)
