@@ -136,7 +136,7 @@ class cs164bRepl:
 
                 # string representation of a single entry
                 sugList.append(str(k) + ": " + str(suggestions[k]))
-            suggestions = reduce(lambda x,y: x + "\t\t\t" + y, sugList)
+            suggestions = reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
             self.updateBox(self.curLineNumber+1, suggestions, self.screen, self.infoBox)
         else:
             self.updateBox(self.curLineNumber+1, "", self.screen, self.infoBox)
