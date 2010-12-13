@@ -107,7 +107,7 @@ class cs164bRepl:
                 tokenCode = self.cs164bparser.tokenize(token)[0][0]
                 self.colorMap[tokenCode] = (colorNumber, attr)
 
-    def updateCurrentLine(self, s, tab=False, stringCompletion=False):
+    def updateCurrentLine(self, s, tab=False, stringCompletion=False, interruptFlag=False):
 
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
@@ -115,6 +115,8 @@ class cs164bRepl:
         #acquire suggestions
         suggestions = {}
         try:
+            if interruptFlag:
+                raise NameError
             lineTokens = self.cs164bparser.tokenize(s)
             if lineTokens:
                 suggestions = self.getSuggestions(lineTokens)
@@ -330,10 +332,12 @@ class cs164bRepl:
             while i != ord('\n') and i != ord(';'):
 
                 tab = False
+                interruptFlag = False
                 self.screen.refresh()
                 try:
                     i = self.screen.getch() #get next char
                 except KeyboardInterrupt:
+                    interruptFlag = True
                     i = ord('\n')
 
                 if self.inTab and i != 9:
@@ -380,15 +384,15 @@ class cs164bRepl:
                     self.gracefulExit()
 
                 # refresh the display
-                self.updateCurrentLine(line, tab)
-
-            if not first_line:
-                to_parse = '\n' + line[:-1]
-            else:
-                to_parse = line[:-1]
-                first_line = False
-            if self.parse_line(to_parse):                       # do an incremental parse
-                first_line = True                               # check if a statement was completed
+                self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
+            if not interruptFlag:
+                if not first_line:
+                    to_parse = '\n' + line[:-1]
+                else:
+                    to_parse = line[:-1]
+                    first_line = False
+                if self.parse_line(to_parse):                       # do an incremental parse
+                    first_line = True                               # check if a statement was completed
 
             hist_ptr = 0
             history[hist_ptr] =  line[:-1]
