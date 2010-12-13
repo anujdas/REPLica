@@ -391,6 +391,10 @@ class cs164bRepl:
                         else:
                             line += '\t'
 
+                elif i == 27: #esc
+                    #bring up a menu?
+                    pass
+
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
 
