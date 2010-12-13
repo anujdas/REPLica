@@ -13,7 +13,7 @@ Object.__index = null
 #
 Object.new = lambda(self, o) {
     o.__mt = self
-    o.__index = self
+    self.__index = self
     o
 }
 
