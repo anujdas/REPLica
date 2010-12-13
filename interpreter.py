@@ -24,10 +24,8 @@ def complete(fragment, env=globEnv):
 # go by Lua standard: __mt/__index for lookups
 def completeObj(fragment, obj):
     # recursively collect all attributes belonging to this function and its parent classes
-    attrs = complete(fragment, env=obj)
-    if '__mt' in obj and obj['__mt']:
-        attrs = attrs + completeObj(fragment, obj['__mt'])
-    return attrs
+    supers = completeObj(fragment, obj['__mt']) if '__mt' in obj and obj['__mt'] else []
+    return supers + complete(fragment, env=obj)
 
 # check if the variable exists anywhere accessible from this environment
 # if so, return its value, else None

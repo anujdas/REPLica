@@ -345,7 +345,7 @@ class cs164bRepl:
         elif fragType[0] == 'none':
             return dict(interpreter.complete(fragType[1]))
         elif fragType[0] == 'obj':
-            return dict(interpreter.completeObj(fragType[2], fragType[1])[::-1])
+            return dict(interpreter.completeObj(fragType[2], fragType[1]))
         elif fragType[0] == 'fun':
             funVal = interpreter.locateInEnv(fragType[1], fragType[3])
             argList = funVal.fun.argList
