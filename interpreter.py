@@ -441,6 +441,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
             REPL.softError("Type error: " + str(e))
             return
         except NameError:
+            REPL.exec_fail = True
             return
     return NeverReached
 
