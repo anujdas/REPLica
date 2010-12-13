@@ -18,6 +18,7 @@ class cs164bRepl:
         self.terminals = self.cs164bparser.terminals
         self.id_tkn = self.cs164bparser.tokenize('a')[0]
         self.dot_tkn = self.cs164bparser.tokenize('.')[0]
+        self.colon_tkn = self.cs164bparser.tokenize(':')[0]
         self.comma_tkn = self.cs164bparser.tokenize(',')[0]
         self.open_tkn = self.cs164bparser.tokenize('(')[0]
         self.close_tkn = self.cs164bparser.tokenize(')')[0]
@@ -226,7 +227,7 @@ class cs164bRepl:
             # iterate through the line to guess type of fragment
             i = 0
             while i < len(tokens) - 1:
-                if tokens[i+1][0] == self.dot_tkn[0]:
+                if tokens[i+1][0] in (self.dot_tkn[0], self.colon_tkn[0]):
                     env = interpreter.locateInEnv(tokens[i][1], env)    # go one object in
                     i += 1                                              # and skip over the dot
                     if type(env) != dict:
