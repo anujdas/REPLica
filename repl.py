@@ -69,12 +69,12 @@ class cs164bRepl:
 
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
-            self.printLine("Error while tokenizing line: " + line, 1)
+            self.printLine("Error while tokenizing line: " + line, 1, curses.A_BOLD)
             self.printLine(str(e), 1)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
         except SyntaxError, e:
-            self.printLine("Error while parsing line: " + line, 1)
+            self.printLine("Error while parsing line: " + line, 1, curses.A_BOLD)
             self.printLine(e.msg)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
@@ -142,6 +142,7 @@ class cs164bRepl:
                 #self.lineFragment = s
                 #save index into token
                 self.fragmentIndex = len(lineTokens[-1][1])
+            
             self.suggestionsIndex = (self.suggestionsIndex+1)%len(self.currentSuggestions) #shift to the next item
             selectedSuggestion = self.currentSuggestions[self.suggestionsIndex]
             s = s + selectedSuggestion[self.fragmentIndex:]
@@ -370,7 +371,7 @@ class cs164bRepl:
                         line = history[hist_ptr]
 
                 elif i == 9:                                    # horizontal tab
-                    if line[-1].isspace() or line == "":
+                    if line[-1].isspace() or line == "" or not self.getSuggestions(lineTokens):
                         line += '\t'
                     else:
                         tab = True
