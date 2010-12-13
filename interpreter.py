@@ -418,7 +418,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                     return
 
                 co.corArg = lookup(e[3])
-                define(e[1], Resume(co.fun.body, co.env, fun=co))
+                define(e[1], Resume(co.fun.body, co.env, fun=co, REPL=REPL))
 
             elif e[0] == 'yield':
                 # The one parameter is an argument passed to whomever resumed the coroutine.
@@ -438,7 +438,6 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
 
             else: raise SyntaxError("Illegal instruction: %s " % str(e))
         except TypeError, e:
-            print e
             REPL.softError("Type error: " + str(e))
             return
         except NameError:
