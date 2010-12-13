@@ -333,17 +333,20 @@ class cs164bRepl:
 
                 tab = False
                 interruptFlag = False
+                lineTokens = []
                 self.screen.refresh()
+                
                 try:
                     i = self.screen.getch() #get next char
-                except KeyboardInterrupt:
+                    
+                except KeyboardInterrupt: #handle ctrl-C
                     interruptFlag = True
                     i = ord('\n')
 
                 if self.inTab and i != 9:
                     self.inTab = False
                     line = self.suggestedLine
-
+                
                 if i >= 32 and i < 127:                         # printable characters
                     line += chr(i)                              # add to the current buffer
                     hist_ptr = 0
@@ -375,16 +378,22 @@ class cs164bRepl:
                         line = history[hist_ptr]
 
                 elif i == 9:                                    # horizontal tab
-                    if line[-1].isspace() or line == "" or not self.getSuggestions(lineTokens):
+                    if line == "" or line[-1].isspace() or not self.getSuggestions(lineTokens):
                         line += '\t'
                     else:
                         tab = True
+
+                elif i == 27: #esc
+                    #bring up a menu?
+                    pass
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
 
                 # refresh the display
                 self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
+                #debug
+                self.updateBox(self.curLineNumber+1, str(i), self.screen, self.infoBox)
             if not interruptFlag:
                 if not first_line:
                     to_parse = '\n' + line[:-1]
