@@ -62,7 +62,7 @@ class cs164bRepl:
     def loadProgram(self, p_file):
         #message to return
         message = ""
-         
+
         # save the history
         history = self.history[:]
 
@@ -73,7 +73,7 @@ class cs164bRepl:
         try:
             prog = re.findall('[^\r\n;]+', re.sub("#.*\r?\n", "", open(p_file).read()))
         except IOError, e:
-            message = "Error loading file!"
+            message = "Error opening file!"
             return (False, message)
 
         # initialize a parser instance, i.e., a coroutine, and prep it
@@ -544,4 +544,18 @@ class cs164bRepl:
 
 if __name__ == "__main__":
     repl = cs164bRepl()
+
+    # load any libraries if specified
+    if len(sys.argv) > 1:
+        repl.printLine("---------")
+        for fileName in sys.argv[1:]:
+            (success, msg) = repl.loadProgram(fileName)
+            if success:
+                repl.printLine("Successfully loaded %s into the global environment." % fileName)
+            else:
+                repl.printLine("Failed to load %s!" % fileName)
+                repl.printLine(msg)
+        repl.printLine("---------")
+
+    # and then initialize the main loop
     repl.main()
