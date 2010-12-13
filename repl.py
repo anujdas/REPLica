@@ -53,6 +53,7 @@ class cs164bRepl:
 
 
     def parse_line(self,line):
+        complete = False                            # a flag set each time a statement is completed
         try:
             tokens = self.cs164bparser.tokenize(line)
             if tokens:                              # no need to consume non-code lines
@@ -63,6 +64,8 @@ class cs164bRepl:
                     # create and prep a new parser instance
                     self.parser = self.cs164bparser.parse()
                     self.parser.next()
+
+                    complete = True                 # mark the start of a new statement
 
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
@@ -75,6 +78,8 @@ class cs164bRepl:
             self.printLine(e.msg)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
+
+        return complete
 
     def printLine(self,s,code=0, attr = curses.A_NORMAL):
         self.clearBox(self.infoBox)
@@ -103,11 +108,10 @@ class cs164bRepl:
                 self.colorMap[tokenCode] = (colorNumber, attr)
 
     def updateCurrentLine(self, s, tab=False, stringCompletion=False):
-    
+
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
-        
-        
+
         #acquire suggestions
         suggestions = {}
         try:
@@ -118,14 +122,13 @@ class cs164bRepl:
             #if not stringCompletion: #try tacking a quote on there, see if it fixes things
             #    return self.updateCurrentLine(s+"\"",tab,True) #set tab=False?
             lineTokens = []                         #TODO color line red, turn off suggestions
-            
+
             self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s, curses.color_pair(1))
             self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
             self.clearBox(self.infoBox)
             self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
             return
-            
-            
+
         if tab: #TODO: optimize and clean up
         #BUG: autocompletes to first fork, stays there! this is a problem
             if not self.inTab:
@@ -152,11 +155,11 @@ class cs164bRepl:
                 self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
                 self.clearBox(self.infoBox)
                 self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
-                return                         
-        
+                return
+
         if (s and s[-1].isspace()):
                 suggestions = {}
-        
+
         #generate color/string/attr triples, store into stringColorPairs
         stringColorPairs = []
         for code, string in lineTokens:
@@ -302,8 +305,9 @@ class cs164bRepl:
     def main(self):
         i = 0
         line = ""
+        first_line = True
 
-        history = [""]
+        history = []
         hist_ptr = 0
 
         #HERE BEGINS THE REPL
@@ -320,6 +324,8 @@ class cs164bRepl:
             # handle indenting appropriately
             line = "" + self.cs164bparser.parsedepth * '\t'
             self.updateCurrentLine(line)
+
+            history.insert(hist_ptr, line)
             i = 0
 
             # processes each character on this line
@@ -338,16 +344,9 @@ class cs164bRepl:
                 suggestions = {}
 
                 if i >= 32 and i < 127:                         # printable characters
-                    #self.screen.addch(i)
                     line += chr(i)                              # add to the current buffer
                     hist_ptr = 0
                     history[hist_ptr] = line                    # and save the line so far
-                    try:
-                        lineTokens = self.cs164bparser.tokenize(line)
-                        if lineTokens:
-                            suggestions = dict(interpreter.complete(lineTokens[-1]))
-                    except NameError, e:
-                        lineTokens = [] #TODO: tokenize lines
 
                 elif i == ord('\n') or i == ord(';'):           # EOL characters
                     self.screen.addch(i)
@@ -379,15 +378,18 @@ class cs164bRepl:
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
 
+                # refresh the display
                 self.updateCurrentLine(line, tab)
 
-                #uncomment to show tokens instead of suggestions
-                #self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox) 
-
-            self.parse_line(line[:-1])
-            if hist_ptr != 0:
-                hist_ptr = 0
-                history.insert(hist_ptr, line[:-1])
+            if not first_line:
+                to_parse = '\n' + line[:-1]
+            else:
+                to_parse = line[:-1]
+                first_line = False
+            if self.parse_line(to_parse):
+                first_line = True
+            hist_ptr = 0
+            history[hist_ptr] =  line[:-1]
 
 if __name__ == "__main__":
     repl = cs164bRepl()
