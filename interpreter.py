@@ -23,23 +23,11 @@ def complete(fragment, env=globEnv):
 # same as above, except for dictionary/object lookups
 # go by Lua standard: __mt/__index for lookups
 def completeObj(fragment, obj):
-
     # recursively collect all attributes belonging to this function and its parent classes
-    def lookupObjectAttrs(obj):
-        attrs = complete(fragment, env=obj)
-        if '__mt' in obj:
-            attrs = attrs + lookupObjectAttrs(obj['__mt'])
-        elif '__index' in obj:
-            attrs = attrs + lookupObjectAttrs(obj['__index'])
-        return attrs
-
-    return lookupObjectAttrs(obj)
-
-# same as above, again, but for function argument completions
-# NOTE: this does not return a list of tuples, but instead a list of arguments. DO NOT SORT!
-def completeFunArgs(fragment, fun, env=globEnv):
-    argList = env[fun].fun.argList if (fun in env and isinstance(env[fun], FunVal)) else []
-    return filter(lambda arg: arg.startswith(fragment), argList)
+    attrs = complete(fragment, env=obj)
+    if '__mt' in obj and obj['__mt']:
+        attrs = attrs + completeObj(fragment, obj['__mt'])
+    return attrs
 
 # check if the variable exists anywhere accessible from this environment
 # if so, return its value, else None
@@ -51,10 +39,7 @@ def locateInEnv(var, env):
     elif '__up__' in env:
         return locateInEnv(var, env['__up__'])
     elif '__mt' in env:
-        if '__index' in env:
-            return locateInEnv(var, env['__mt']) or locateInEnv(var, env['__index'])
-        else:
-            return locateInEnv(var, env['__mt'])
+        return locateInEnv(var, env['__mt'])
     else:
         return None
 

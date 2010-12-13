@@ -347,7 +347,7 @@ class cs164bRepl:
         elif fragType[0] == 'obj':
             return dict(interpreter.completeObj(fragType[2], fragType[1])[::-1])
         elif fragType[0] == 'fun':
-            funVal = fragType[3][fragType[1]]
+            funVal = interpreter.locateInEnv(fragType[1], fragType[3])
             argList = funVal.fun.argList
             return (fragType[1], argList, dict(interpreter.complete(fragType[2])))  # (function name, arguments, tab completions)
 

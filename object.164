@@ -1,0 +1,33 @@
+##
+# The base class in our object hierarchy. All other classes must inherit from
+# the root Object class.
+#
+def Object = {}
+Object.__mt = null
+Object.__index = null
+
+##
+# A constructor-like method that implements prototype-based inheritance.
+# All Object instances as well as its subclasses are constructed with this
+# method. See http://www.lua.org/pil/16.2.html for details.
+#
+Object.new = lambda(self, o) {
+    o.__mt = self
+    o.__index = self
+    o
+}
+
+##
+# Returns the super class of this object.
+# Usage: self:super().methodCall(self)
+# Note that this differs from "self:super():methodCall()" since the superclass
+# method needs to be called on this object, and not the superclass itself.
+#
+Object.super = lambda(self) {
+    if ("__index" in self) {
+        self.__mt.__index
+    } else {
+        (self.__mt):super()
+    }
+}
+
