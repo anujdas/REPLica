@@ -41,6 +41,7 @@ class cs164bRepl:
         curses.cbreak()
         self.screen.clear()
         self.screen.leaveok(False)
+        self.screen.scrollok(True)
         self.infoBox = 0
 
         #tab-complete specific vars
@@ -154,6 +155,9 @@ class cs164bRepl:
     def printLine(self,s,code=0, attr = curses.A_NORMAL):
         self.clearBox(self.infoBox)
         self.curLineNumber += 1
+        if self.curLineNumber > self.screen.getmaxyx()[0] - 5:
+            self.screen.scroll(5)
+            self.curLineNumber -= 5
         self.screen.addstr(self.curLineNumber, 0, s,curses.color_pair(code) | attr) # print the prompt
 
     def init_colors(self):
@@ -475,6 +479,9 @@ class cs164bRepl:
         while True:
 
             self.curLineNumber += 1
+            if self.curLineNumber > self.screen.getmaxyx()[0] - 5:
+                self.screen.scroll(5)
+                self.curLineNumber -= 5
             self.clearBox(self.infoBox)
             if not self.cs164bparser.parsedepth:
                 self.screen.addstr(self.curLineNumber, 0, PROMPTSTR) # print the prompt
@@ -484,11 +491,12 @@ class cs164bRepl:
             # handle indenting appropriately
             line = "" + self.cs164bparser.parsedepth * '\t'
             self.updateCurrentLine(line)
+            lineTokens = []
 
             history.insert(hist_ptr, line)
-            i = 0
 
             # processes each character on this line
+            i = 0
             while i != ord('\n') and i != ord(';'):
 
                 tab = False
