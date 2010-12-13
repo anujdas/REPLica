@@ -6,6 +6,7 @@ import sys, getopt, parser_generator, grammar_parser, repl
 
 # global environment.  Persists across invocations of the ExecGlobal function 
 globEnv = {'__up__':None}
+cs164b_builtins = ["def", "error", "print", "if", "while", "for", "in", "null", "len", "lambda", "type", "native", "ite", "coroutine", "resume", "yield", "&&", "||", "<=", ">=", "==", "!="]
 cs164parser = None
 
 def ExecGlobal(ast):
@@ -16,7 +17,9 @@ def ExecGlobalStmt(ast,repl = None):
 # get tab-completion results for a given string fragment
 # TODO: look up through dictionaries, objects, builtins, etc.
 def complete(fragment, env=globEnv):
-    return map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
+    lookups = map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
+    builtins = map(lambda k: (k, None), filter(lambda name: name.startswith(fragment), cs164b_builtins))
+    return lookups + builtins
 
 # Abstract syntax of bytecode:
 #
