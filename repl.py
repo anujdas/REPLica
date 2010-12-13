@@ -137,6 +137,8 @@ class cs164bRepl:
                 #if we are just entering the autocomplete, save this and the iterator
                 self.currentSuggestions = []
                 self.suggestionsIndex = -1
+                if type(suggestions) == tuple:          # special case for fn. completions
+                    suggestions = suggestions[2]
                 for k,v in suggestions.iteritems():
                     self.currentSuggestions.append(k)
                 self.inTab = True
@@ -226,7 +228,7 @@ class cs164bRepl:
 
             # iterate through the line to guess type of fragment
             i = 0
-            while i < len(tokens) - 2:
+            while i < len(tokens) - 1:
                 if tokens[i+1][0] == self.dot_tkn[0]:
                     env = interpreter.locateInEnv(tokens[i][1], env)    # go one object in
                     i += 1                                              # and skip over the dot
@@ -234,24 +236,27 @@ class cs164bRepl:
                         return None                                     # no such variable, or not an object
                 elif tokens[i+1][0] == self.open_tkn[0]:                # make sure this is actually a function
                     if isinstance(interpreter.locateInEnv(tokens[i][1], env), interpreter.FunVal):
-                        inparens.append(tokens[i][1])                   # if so, add it to the stack
+                        inparens.append((tokens[i][1], env))            # if so, add it to the stack, along with its env
                         env = interpreter.globEnv
                         i += 1
-                    else:
-                        return None                                     # otherwise, fail
                 elif tokens[i][0]  == self.open_tkn[0]:                 # generic parentheses
                     inparens.append('(')
                     env = interpreter.globEnv
-                elif tokens[i][0] == self.close_tkn[0]:                 # pop out of the current paren stack
-                    inparens.pop()
+                elif tokens[i][0] == self.close_tkn[0] and inparens:    # pop out of the current paren stack, if one exists
+                        inparens.pop()
                 else:
                     env = interpreter.globEnv                           # out of this object, back to global environment
                 i += 1
 
+            if tokens[-1][0] == self.close_tkn[0] and inparens:         # clean up trailing parens
+                inparens.pop()
+            elif tokens[-1][0] == self.open_tkn[0]:
+                inparens.append('(')
+
             # Now attempt to determine the type of the fragment, and what is needed to get its completions
             if env is interpreter.globEnv:                              # not in an object
-                if inparens and inparens[-1] != '(':                    # in a function call
-                    return ('fun', inparens[-1], fragment, env)
+                if inparens and type(inparens[-1]) == tuple:            # in a function call
+                    return ('fun', inparens[-1][0], fragment, inparens[-1][1])
                 else:                                                   # just plain parentheses
                     return ('none', fragment)
             else:
@@ -270,7 +275,6 @@ class cs164bRepl:
             return (fragType[1], argList, dict(interpreter.complete(fragType[2])))  # (function name, arguments, tab completions)
 
     def showSuggestions(self, suggestions):
-
         output = ""                             # the string that goes in the box
         width = self.screen.getmaxyx()[1] - 6
         sugList = []
