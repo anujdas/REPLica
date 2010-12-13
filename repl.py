@@ -38,7 +38,7 @@ class cs164bRepl:
         self.screen.clear()
         self.screen.leaveok(False)
         self.infoBox = 0
-        
+
         #tab-complete specific vars
         self.inTab = False
         self.currentSuggestions = []
@@ -192,10 +192,10 @@ class cs164bRepl:
         self.screen.refresh()
 
     # update the info box.
-    #	lineNum: line number that the box should appear on
-    #	s: string to display in the box
-    #	scr: the current curses window object
-    #	box: the box's curses window object
+    #   lineNum: line number that the box should appear on
+    #   s: string to display in the box
+    #   scr: the current curses window object
+    #   box: the box's curses window object
     def updateBox(self, lineNum, s, scr, box):
         self.clearBox(box)
         width = self.screen.getmaxyx()[1] - 6
@@ -325,12 +325,13 @@ class cs164bRepl:
             # processes each character on this line
             while i != ord('\n') and i != ord(';'):
 
+                tab = False
                 self.screen.refresh()
                 try:
                     i = self.screen.getch() #get next char
                 except KeyboardInterrupt:
                     i = ord('\n')
-                    
+
                 if self.inTab and i != 9:
                     self.inTab = False
                     line = self.suggestedLine
@@ -373,19 +374,20 @@ class cs164bRepl:
                     if line[-1].isspace() or line == "":
                         line += '\t'
                     else:
-                    1   # do some tab-related stuff here, maybe?
+                        tab = True
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
 
                 self.updateCurrentLine(line, tab)
-                
+
                 #uncomment to show tokens instead of suggestions
                 #self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox) 
 
             self.parse_line(line[:-1])
-            hist_ptr = 0
-            history.insert(hist_ptr, line[:-1])
+            if hist_ptr != 0:
+                hist_ptr = 0
+                history.insert(hist_ptr, line[:-1])
 
 if __name__ == "__main__":
     repl = cs164bRepl()
