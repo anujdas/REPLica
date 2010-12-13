@@ -73,11 +73,13 @@ class cs164bRepl:
             self.printLine(str(e), 1)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
+            complete = True                         # mark the start of a new statement
         except SyntaxError, e:
             self.printLine("Error while parsing line: " + line, 1, curses.A_BOLD)
             self.printLine(e.msg)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
+            complete = True                         # mark the start of a new statement
 
         return complete
 
@@ -142,7 +144,7 @@ class cs164bRepl:
                 #self.lineFragment = s
                 #save index into token
                 self.fragmentIndex = len(lineTokens[-1][1])
-            
+
             self.suggestionsIndex = (self.suggestionsIndex+1)%len(self.currentSuggestions) #shift to the next item
             selectedSuggestion = self.currentSuggestions[self.suggestionsIndex]
             s = s + selectedSuggestion[self.fragmentIndex:]
@@ -257,7 +259,7 @@ class cs164bRepl:
         elif fragType[0] == 'none':
             return dict(interpreter.complete(fragType[1]))
         elif fragType[0] == 'obj':
-            return dict(interpreter.completeObj(fragType[2], fragType[1]))
+            return dict(interpreter.completeObj(fragType[2], fragType[1])[::-1])
         elif fragType[0] == 'fun':
             funVal = fragType[3][fragType[1]]
             argList = funVal.fun.argList

@@ -28,9 +28,9 @@ def completeObj(fragment, obj):
     def lookupObjectAttrs(obj):
         attrs = complete(fragment, env=obj)
         if '__mt' in obj:
-            attrs = attrs + lookupObjectAttrs(fragment, obj['__mt'])
-        if '__index' in obj:
-            attrs = attrs + lookupObjectAttrs(fragment, obj['__index'])
+            attrs = attrs + lookupObjectAttrs(obj['__mt'])
+        elif '__index' in obj:
+            attrs = attrs + lookupObjectAttrs(obj['__index'])
         return attrs
 
     return lookupObjectAttrs(obj)
