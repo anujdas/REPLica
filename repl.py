@@ -36,8 +36,6 @@ class cs164bRepl:
             self.screen.addstr(i,0, greetings[i])
         self.curLineNumber = len(greetings)-1
 
-    def init_colors(self):
-        curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
 
     def parse_line(self,line):
         try:
@@ -53,12 +51,12 @@ class cs164bRepl:
 
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
-            self.printLine("Error while tokenizing line: " + line)
-            self.printLine(str(e))
+            self.printLine("Error while tokenizing line: " + line, 1)
+            self.printLine(str(e), 1)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
         except SyntaxError, e:
-            self.printLine("Error while parsing line: " + line)
+            self.printLine("Error while parsing line: " + line, 1)
             self.printLine(e.msg)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
@@ -124,7 +122,6 @@ class cs164bRepl:
 
         x_pos = len(PROMPTSTR) + len(s)
         self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
-        #self.updateBox(self.curLineNumber+1, str(suggestions), self.screen, self.infoBox)
         self.showSuggestions(suggestions)
         self.screen.move(self.curLineNumber, x_pos) #move cursor to end of line
 
@@ -179,7 +176,7 @@ class cs164bRepl:
         sys.exit(0)
 
     def softError(self,s):
-        self.printLine("Error: " + s)
+        self.printLine("Error: " + s, 1)
 
     def main(self):
         i = 0
