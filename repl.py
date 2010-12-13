@@ -30,6 +30,13 @@ class cs164bRepl:
         self.screen.clear()
         self.screen.leaveok(False)
         self.infoBox = 0
+        
+        #tab-complete specific vars
+        self.inTab = False
+        self.currentSuggestions = []
+        self.suggestionsIndex = 0
+        self.suggestedLine = ""
+        self.fragmentIndex = 0
 
         #print the greeting and adjust the current line accordingly
         for i in range(len(greetings)):
@@ -74,7 +81,7 @@ class cs164bRepl:
         curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
         operators = ["&&", "||", "<=", ">=", "==", "!=", "=", ",", \
-                         ";","+","*","/","-"]
+                         ";","+","*","/","-","(",")","[","]","{","}"]
         keywords = ["def", "in", "for", "null", "error","lambda", "print", \
                      "if", "while", "in", "null","len", "native", \
                       "ite", "coroutine", "resume", "yield"]
@@ -87,24 +94,50 @@ class cs164bRepl:
                 tokenCode = self.cs164bparser.tokenize(token)[0][0]
                 self.colorMap[tokenCode] = (colorNumber, attr)
 
-    def updateCurrentLine(self, s):
+    def updateCurrentLine(self, s, tab=False):
+    #
+        #acquire suggestions
         suggestions = {}
         try:
             lineTokens = self.cs164bparser.tokenize(s)
             if lineTokens:
                 suggestions = dict(interpreter.complete(lineTokens[-1]))
         except NameError, e:
-            lineTokens = []                         #TODO color line red
-
+            lineTokens = []                         #TODO color line red 
+            
+            
+        if tab: #TODO: optimize and clean up
+            if not self.inTab:
+                #if we are just entering the autocomplete, save this and the iterator
+                self.currentSuggestions = []
+                self.suggestionsIndex = -1
+                for k,v in suggestions.iteritems():
+                    self.currentSuggestions.append(k)
+                self.inTab = True
+                #copy current line
+                #self.lineFragment = s
+                #save index into token
+                self.fragmentIndex = len(lineTokens[-1][1])
+            self.suggestionsIndex = (self.suggestionsIndex+1)%len(self.currentSuggestions) #shift to the next itme
+            selectedSuggestion = self.currentSuggestions[self.suggestionsIndex]
+            s = s + selectedSuggestion[self.fragmentIndex:]
+            self.suggestedLine = s
+            #retokenize to account for the new item
+            try:
+                lineTokens = self.cs164bparser.tokenize(s)
+                if lineTokens:
+                    suggestions = dict(interpreter.complete(lineTokens[-1]))
+            except NameError, e:
+                lineTokens = []                         #TODO color line red
+        
+        #generate color/string/attr triples, store into stringColorPairs
         stringColorPairs = []
-        for code, string in lineTokens: #TODO 
-            #generate color/string pairs
+        for code, string in lineTokens:
             color, attr = self.colorMap.get(code,(0, curses.A_NORMAL))
-            stringColorPairs.append((string, color, attr)) #generate pairs of strings and the corresponding color pair number
+            stringColorPairs.append((string, color, attr))
 
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
-
         x_pos = len(PROMPTSTR)
         str_index = 0
 
@@ -117,10 +150,11 @@ class cs164bRepl:
             self.screen.addstr(self.curLineNumber, x_pos, string, curses.color_pair(colorNumber) | attr) #bold/underline?
             x_pos += len(string)
             str_index += len(string)
-
+            
+        #print rest of string if we're not done
         if (str_index != len(s)):
             self.screen.addstr(self.curLineNumber, x_pos, s[str_index:], curses.color_pair(0))
-
+        
         x_pos = len(PROMPTSTR) + len(s)
         self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
         self.showSuggestions(suggestions)
@@ -204,12 +238,17 @@ class cs164bRepl:
 
             # processes each character on this line
             while i != ord('\n') and i != ord(';'):
-
+                
+                tab = False
                 self.screen.refresh()
                 try:
                     i = self.screen.getch() #get next char
                 except KeyboardInterrupt:
                     i = ord('\n')
+                    
+                if self.inTab and i != 9:
+                    self.inTab = False
+                    line = self.suggestedLine
                 suggestions = {}
 
                 if i >= 32 and i < 127:                         # printable characters
@@ -246,12 +285,15 @@ class cs164bRepl:
                         line = history[hist_ptr]
 
                 elif i == 9:                                    # horizontal tab
-                    line += '\t'       # do some tab-related stuff here, maybe?
+                    if line[-1].isspace() or line == "":
+                        line += '\t'
+                    else:
+                        tab = True
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
 
-                self.updateCurrentLine(line)
+                self.updateCurrentLine(line, tab)
                 
                 #uncomment to show tokens instead of suggestions
                 #self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox) 
