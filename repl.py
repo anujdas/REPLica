@@ -94,7 +94,7 @@ class cs164bRepl:
                 tokenCode = self.cs164bparser.tokenize(token)[0][0]
                 self.colorMap[tokenCode] = (colorNumber, attr)
 
-    def updateCurrentLine(self, s, tab=False):
+    def updateCurrentLine(self, s, tab=False, stringCompletion=False):
     #
         #acquire suggestions
         suggestions = {}
@@ -103,10 +103,16 @@ class cs164bRepl:
             if lineTokens:
                 suggestions = dict(interpreter.complete(lineTokens[-1]))
         except NameError, e:
-            lineTokens = []                         #TODO color line red 
+            #if not stringCompletion: #try tacking a quote on there, see if it fixes things
+            #    return self.updateCurrentLine(s+"\"",tab,True) #set tab=False?
+            lineTokens = []                         #TODO color line red, turn off suggestions
+            self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s, curses.color_pair(1))
+            self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
+            return
             
             
         if tab: #TODO: optimize and clean up
+        #BUG: autocompletes to first fork, stays there! this is a problem
             if not self.inTab:
                 #if we are just entering the autocomplete, save this and the iterator
                 self.currentSuggestions = []
@@ -118,15 +124,13 @@ class cs164bRepl:
                 #self.lineFragment = s
                 #save index into token
                 self.fragmentIndex = len(lineTokens[-1][1])
-            self.suggestionsIndex = (self.suggestionsIndex+1)%len(self.currentSuggestions) #shift to the next itme
+            self.suggestionsIndex = (self.suggestionsIndex+1)%len(self.currentSuggestions) #shift to the next item
             selectedSuggestion = self.currentSuggestions[self.suggestionsIndex]
             s = s + selectedSuggestion[self.fragmentIndex:]
             self.suggestedLine = s
             #retokenize to account for the new item
             try:
                 lineTokens = self.cs164bparser.tokenize(s)
-                if lineTokens:
-                    suggestions = dict(interpreter.complete(lineTokens[-1]))
             except NameError, e:
                 lineTokens = []                         #TODO color line red
         
