@@ -2,7 +2,7 @@
 import curses, sys, textwrap
 import parser_generator, interpreter, grammar_parser
 
-greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>."]
+greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>.","Press F2 to see the menu."]
 PROMPTSTR =   "cs164b> "
 CONTINUESTR = "    ... "
 
@@ -308,6 +308,29 @@ class cs164bRepl:
 
     def softError(self,s):
         self.printLine("Error: " + s, 1, curses.A_BOLD)
+    
+    def menu(self):
+        y,x = self.screen.getmaxyx()
+        menu = curses.newwin(y,x,0,0)
+        menu.addstr(1,0,"1 - Load a file")
+        menu.addstr(2,0,"2 - Import a file")
+        menu.addstr(3,0,"3 - Exit")
+        menu.touchwin()
+        menu.refresh()
+        c = menu.getch()
+        
+        if (c == ord('1')):
+            #load a file!
+            pass
+        elif(c == ord('2')):
+            #import a file!
+            pass
+        elif(c == ord('3')):
+            self.gracefulExit()
+        
+        del menu
+        self.screen.touchwin()
+        self.screen.refresh()
 
     def main(self):
         i = 0
@@ -391,9 +414,8 @@ class cs164bRepl:
                         else:
                             line += '\t'
 
-                elif i == 27: #esc
-                    #bring up a menu?
-                    pass
+                elif i == curses.KEY_F2: #F2
+                    self.menu()
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
