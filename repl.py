@@ -59,7 +59,9 @@ class cs164bRepl:
     # and parsing the rest of the file is a waste.
     # I'll change this after the current version is merged into the REPL.
     def loadProgram(self, p_file):
-
+        #message to return
+        message = ""
+         
         # save the history
         history = self.history[:]
 
@@ -70,8 +72,8 @@ class cs164bRepl:
         try:
             prog = re.findall('[^\r\n;]+', re.sub("#.*\r?\n", "", open(p_file).read()))
         except IOError, e:
-            self.printLine("Error loading file!")
-            return False
+            message = "Error loading file!"
+            return (False, message)
 
         # initialize a parser instance, i.e., a coroutine, and prep it
         parser = self.cs164bparser.parse()
@@ -101,8 +103,7 @@ class cs164bRepl:
 
             # soft failure - if there's an error, print a helpful message and create a new parser
             except SyntaxError, e:
-                self.printLine("Error while parsing line: " + l, 1, curses.A_BOLD)
-                self.printLine(e.msg)
+                message = "Error while parsing line: " + l + "\n" + e.msg
                 success = False
                 break
             except Exception:
@@ -111,7 +112,7 @@ class cs164bRepl:
 
         # restore history
         self.history = history
-        return success
+        return (success, message)
 
     def parse_line(self,line):
         complete = False                            # a flag set each time a statement is completed
@@ -392,10 +393,12 @@ class cs164bRepl:
             menu.move(1, len("Enter file name to load: "))
             fileName = menu.getstr()
             #do stuff with fileName
-            if self.loadProgram(fileName):
+            suc, msg = self.loadProgram(fileName)
+            if suc:
                 menu.addstr(2,0,"Loaded. Press any key.")
             else:
-                menu.addstr(2,0,"Loading %s failed!" % fileName)
+                menu.addstr(2,0,"Loading %s failed!" % fileName, curses.color_pair(1) | curses.A_BOLD)
+                menu.addstr(2,0,msg,curses.color_pair(1) | curses.A_BOLD)
             menu.getch()
 
         elif(c == ord('2')):
