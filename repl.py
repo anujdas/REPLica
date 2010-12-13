@@ -130,7 +130,6 @@ class cs164bRepl:
             return
 
         if tab: #TODO: optimize and clean up
-        #BUG: autocompletes to first fork, stays there! this is a problem
             if not self.inTab:
                 #if we are just entering the autocomplete, save this and the iterator
                 self.currentSuggestions = []
@@ -138,8 +137,6 @@ class cs164bRepl:
                 for k,v in suggestions.iteritems():
                     self.currentSuggestions.append(k)
                 self.inTab = True
-                #copy current line
-                #self.lineFragment = s
                 #save index into token
                 self.fragmentIndex = len(lineTokens[-1][1])
             
