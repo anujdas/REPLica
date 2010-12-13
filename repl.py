@@ -240,6 +240,10 @@ class cs164bRepl:
                 return
 
         if (s and s[-1].isspace()):
+            # special case for functions: print the function definition
+            if type(suggestions) == tuple:
+                suggestions = {suggestions[0] + "(" + (reduce(lambda x,y: x+", "+y, suggestions[1]) if suggestions[1] else "") + ")" : None}
+            else:
                 suggestions = {}
 
         #generate color/string/attr triples, store into stringColorPairs
