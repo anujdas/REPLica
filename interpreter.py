@@ -177,6 +177,10 @@ class FunVal:  # function value (a closure): (fun, env)
         self.coroutine = coroutine
         self.corStack = ()      # (stmts, pc, lhsVar, env, callStack)
         self.corArg = None
+    def __str__(self):
+        return "function(" + (reduce(lambda x,y: x+", "+y, self.fun.argList) if self.fun.argList else "") + ")"
+    def __repr__(self):
+        return "function(" + (reduce(lambda x,y: x+", "+y, self.fun.argList) if self.fun.argList else "") + ")"
 
 def Exec(stmts):
     """ Execute a sequence of statements at the outermost level"""
