@@ -162,6 +162,7 @@ class cs164bRepl:
         curses.init_pair(3, curses.COLOR_CYAN, curses.COLOR_BLACK)
         curses.init_pair(4, curses.COLOR_YELLOW, curses.COLOR_BLACK)
         curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_WHITE) #comments
 
         operators = ["&&", "||", "<=", ">=", "==", "!=", "=", ",", \
                          ";","+","*","/","-","(",")","[","]","{","}"]
@@ -169,7 +170,8 @@ class cs164bRepl:
                      "if", "while", "in", "null","len", "native", \
                       "ite", "coroutine", "resume", "yield"]
         quotedStrings = ["\"a string\""]
-        categories = [(operators, 2, curses.A_BOLD), (keywords, 3, curses.A_NORMAL), (quotedStrings, 5, curses.A_NORMAL)]
+        number = ["5"]
+        categories = [(operators, 2, curses.A_BOLD), (keywords, 3, curses.A_NORMAL), (quotedStrings, 5, curses.A_NORMAL), (number, 4,curses.A_NORMAL)]
 
         #populate colorMap
         for category, colorNumber, attr in categories:
@@ -259,7 +261,7 @@ class cs164bRepl:
             self.screen.addstr(self.curLineNumber, x_pos, s[str_index:], curses.color_pair(0))
 
         x_pos = len(PROMPTSTR) + len(s)
-        self.screen.addstr(self.curLineNumber, x_pos, comment, curses.color_pair(0))
+        self.screen.addstr(self.curLineNumber, x_pos, comment, curses.color_pair(6))
         x_pos += len(comment)
 
         self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
