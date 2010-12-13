@@ -103,11 +103,10 @@ class cs164bRepl:
                 self.colorMap[tokenCode] = (colorNumber, attr)
 
     def updateCurrentLine(self, s, tab=False, stringCompletion=False):
-    
+
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
-        
-        
+
         #acquire suggestions
         suggestions = {}
         try:
@@ -118,14 +117,13 @@ class cs164bRepl:
             #if not stringCompletion: #try tacking a quote on there, see if it fixes things
             #    return self.updateCurrentLine(s+"\"",tab,True) #set tab=False?
             lineTokens = []                         #TODO color line red, turn off suggestions
-            
+
             self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s, curses.color_pair(1))
             self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
             self.clearBox(self.infoBox)
             self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
             return
-            
-            
+
         if tab: #TODO: optimize and clean up
         #BUG: autocompletes to first fork, stays there! this is a problem
             if not self.inTab:
@@ -152,11 +150,11 @@ class cs164bRepl:
                 self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
                 self.clearBox(self.infoBox)
                 self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
-                return                         
-        
+                return
+
         if (s and s[-1].isspace()):
                 suggestions = {}
-        
+
         #generate color/string/attr triples, store into stringColorPairs
         stringColorPairs = []
         for code, string in lineTokens:
@@ -338,16 +336,9 @@ class cs164bRepl:
                 suggestions = {}
 
                 if i >= 32 and i < 127:                         # printable characters
-                    #self.screen.addch(i)
                     line += chr(i)                              # add to the current buffer
                     hist_ptr = 0
                     history[hist_ptr] = line                    # and save the line so far
-                    try:
-                        lineTokens = self.cs164bparser.tokenize(line)
-                        if lineTokens:
-                            suggestions = dict(interpreter.complete(lineTokens[-1]))
-                    except NameError, e:
-                        lineTokens = [] #TODO: tokenize lines
 
                 elif i == ord('\n') or i == ord(';'):           # EOL characters
                     self.screen.addch(i)
