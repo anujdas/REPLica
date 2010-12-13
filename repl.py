@@ -14,6 +14,7 @@ class cs164bRepl:
 
         # vars for file saving
         self.history = []           # history of succesfully executed lines
+        self.currLine = ""          # and the current line, which may yet succeed
         self.exec_fail = False      # otherwise, how would we know if it succeeded?
 
         # collect token information for later
@@ -119,11 +120,13 @@ class cs164bRepl:
             tokens = self.cs164bparser.tokenize(line)
             if tokens:                              # no need to consume non-code lines
                 input_ast = self.parser.send(tokens)     # parse this line
+                self.currLine = self.currLine + line
                 if type(input_ast) == tuple:        # parsing completed on this line; execute result
                     self.exec_fail = False
                     interpreter.ExecGlobalStmt(input_ast,self)
                     if not self.exec_fail:
-                        self.history.append(line)
+                        self.history.append(self.currLine + '\n')
+                    self.currLine = ""
 
                     # create and prep a new parser instance
                     self.parser = self.cs164bparser.parse()
