@@ -15,7 +15,6 @@ def ExecGlobalStmt(ast,repl = None):
     Resume(bytecode(desugar([ast]))[1], globEnv, REPL=repl)
 
 # get tab-completion results for a given string fragment
-# TODO: look up through dictionaries, objects, builtins, etc.
 def complete(fragment, env=globEnv):
     lookups = map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
     builtins = map(lambda k: (k, None), filter(lambda name: name.startswith(fragment), cs164b_builtins))
@@ -23,7 +22,7 @@ def complete(fragment, env=globEnv):
 
 # same as above, except for dictionary/object lookups
 # go by Lua standard: __mt/__index for lookups
-def completeObj(fragment, obj, env=globEnv):
+def completeObj(fragment, obj):
 
     # recursively collect all attributes belonging to this function and its parent classes
     def lookupObjectAttrs(obj):
@@ -34,13 +33,31 @@ def completeObj(fragment, obj, env=globEnv):
             attrs = attrs + lookupObjectAttrs(fragment, obj['__index'])
         return attrs
 
-    return lookupObjectAttrs(env[obj]) if obj in env else []
+    return lookupObjectAttrs(obj)
 
 # same as above, again, but for function argument completions
 # NOTE: this does not return a list of tuples, but instead a list of arguments. DO NOT SORT!
 def completeFunArgs(fragment, fun, env=globEnv):
     argList = env[fun].fun.argList if (fun in env and isinstance(env[fun], FunVal)) else []
     return filter(lambda arg: arg.startswith(fragment), argList)
+
+# check if the variable exists anywhere accessible from this environment
+# if so, return its value, else None
+def locateInEnv(var, env):
+    if not env:
+        return None
+    elif var in env:
+        return env[var]
+    elif '__up__' in env:
+        return locateInEnv(var, env['__up__'])
+    elif '__mt' in env:
+        if '__index' in env:
+            return locateInEnv(var, env['__mt']) or locateInEnv(var, env['__index'])
+        else:
+            return locateInEnv(var, env['__mt'])
+    else:
+        return None
+
 
 # Abstract syntax of bytecode:
 #

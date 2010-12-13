@@ -18,6 +18,7 @@ class cs164bRepl:
         self.terminals = self.cs164bparser.terminals
         self.id_tkn = self.cs164bparser.tokenize('a')
         self.dot_tkn = self.cs164bparser.tokenize('.')
+        self.comma_tkn = self.cs164bparser.tokenize(',')
         self.open_tkn = self.cs164bparser.tokenize('(')
         self.close_tkn = self.cs164bparser.tokenize(')')
 
@@ -129,7 +130,7 @@ class cs164bRepl:
 
         x_pos = len(PROMPTSTR) + len(s)
         self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
-        self.showSuggestions(suggestions)
+        self.showSuggestions(self.getSuggestions(lineTokens))
         self.screen.move(self.curLineNumber, x_pos) #move cursor to end of line
 
     #helper function to clear the info box
@@ -155,10 +156,68 @@ class cs164bRepl:
         box.touchwin()
         box.refresh()
 
+    def getSuggestions(self, tokens):
+
+        def findFunctionalUnit(tokens):
+            if not tokens:                                              # can't fill the hole in your heart, I mean, code
+                return None
+
+            fragment = tokens[-1][1]                                    # the text to complete
+            env = interpreter.globEnv                                   # env to look in
+            inparens = []                                               # call stack
+
+            # iterate through the line to guess type of fragment
+            for i in xrange(len(tokens) - 2):
+                if tokens[i+1][0] == self.dot_tkn[0]:
+                    env = interpreter.locateInEnv(tokens[i][1], env)    # go one object in
+                    if type(env) != dict:
+                        return None                                     # no such variable, or not an object
+                elif tokens[i+1][0] == self.open_tkn[0]:                # make sure this is actually a function
+                    if isinstance(interpreter.locateInEnv(tokens[i], env), interpreter.FunVal):
+                        inparens.append(tokens[i][1])                   # if so, add it to the stack
+                        env = interpreter.globEnv
+                    else:
+                        return None                                     # otherwise, fail
+                elif tokens[i][0]  == self.open_tkn[0]:                 # generic parentheses
+                    inparens.append('(')
+                    env = interpreter.globEnv
+                elif tokens[i][0] == self.close_tkn[0]:                 # pop out of the current paren stack
+                    inparens.pop()
+                else:
+                    env = interpreter.globEnv                           # out of this object, back to global environment
+
+            # Now attempt to determine the type of the fragment, and what is needed to get its completions
+            if env is interpreter.globEnv:                              # not in an object
+                if inparens and inparens[-1] != '(':                    # in a function call
+                    return ('fun', inparens[-1], fragment, env)
+                else:                                                   # just plain parentheses
+                    return ('none', fragment)
+            else:
+                return ('obj', env, fragment)
+
+        fragType = findFunctionalUnit(tokens)
+        if not fragType:
+            return None
+        elif fragType[0] == 'none':
+            return dict(interpreter.complete(fragType[1]))
+        elif fragType[0] == 'obj':
+            return dict(interpreter.completeObj(fragType[2], fragType[1]))
+        elif fragType[0] == 'fun':
+            funVal = fragType[3][fragType[1]]
+            argList = funVal.fun.argList
+            return (fragType[1], argList, dict(interpreter.complete(fragType[2])))  # (function name, arguments, tab completions)
+
     def showSuggestions(self, suggestions):
         if suggestions:
+            output = ""                             # the string that goes in the box
             width = self.screen.getmaxyx()[1] - 6
             sugList = []
+
+            # special case for functions: print the function definition first
+            if type(suggestions) == tuple:
+                output = suggestions[0] + "(" + (reduce(lambda x,y: x+","+y, suggestions[1]) if suggestions[1] else "") + ")\n"
+                suggestions = suggestions[2]
+
             for k,v in suggestions.iteritems():
                 # pretty representation of functions - add others as needed
                 if isinstance(v, interpreter.FunVal):
@@ -169,8 +228,9 @@ class cs164bRepl:
                     sugList.append(str(k) + ": " + str(suggestions[k]))
                 else:
                     sugList.append(str(k))
-            suggestions = reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
-            self.updateBox(self.curLineNumber+1, suggestions, self.screen, self.infoBox)
+
+            output = output + reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
+            self.updateBox(self.curLineNumber+1, output, self.screen, self.infoBox)
         else:
             self.updateBox(self.curLineNumber+1, "", self.screen, self.infoBox)
             self.clearBox(self.infoBox)
@@ -260,7 +320,6 @@ class cs164bRepl:
                     self.gracefulExit()
 
                 self.updateCurrentLine(line)
-                #self.showSuggestions(suggestions)
 
             self.parse_line(line[:-1])
             hist_ptr = 0
