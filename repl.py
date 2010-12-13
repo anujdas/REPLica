@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import curses, sys, textwrap, re
+import curses, sys, textwrap, re, os
 import parser_generator, interpreter, grammar_parser
 
 greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>.","Press F2 to see the menu."]
@@ -382,7 +382,7 @@ class cs164bRepl:
         y,x = self.screen.getmaxyx()
         menu = curses.newwin(y,x,0,0)
         menu.addstr(1,0,"1 - Load a file")
-        menu.addstr(2,0,"2 - Save a file")
+        menu.addstr(2,0,"2 - Save to a file")
         menu.addstr(3,0,"3 - Exit")
         menu.touchwin()
         menu.refresh()
@@ -393,6 +393,17 @@ class cs164bRepl:
         if (c == ord('1')):
             menu = curses.newwin(y,x,0,0)
             menu.addstr(1,0,"Enter file name to load: ")
+            
+            #save for later
+            oS = self.screen
+            self.screen = menu
+            s = [x for x in os.listdir('.') if x.endswith('.164')]
+            if s:
+                s = "Available files: "+reduce(lambda x,y: x + "\t\t\t" + y, sorted(s))
+            else:
+                s = "No 164 files here"
+            self.updateBox(3, s,self.screen, self.infoBox)
+            
             menu.move(1, len("Enter file name to load: "))
             fileName = menu.getstr()
             #do stuff with fileName
@@ -400,9 +411,11 @@ class cs164bRepl:
             if suc:
                 menu.addstr(2,0,"Loaded. Press any key.")
             else:
-                menu.addstr(2,0,"Loading %s failed!" % fileName, curses.color_pair(1) | curses.A_BOLD)
+                menu.addstr(3,0,"Loading %s failed!" % fileName, curses.color_pair(1) | curses.A_BOLD)
                 menu.addstr(2,0,msg,curses.color_pair(1) | curses.A_BOLD)
             menu.getch()
+            
+            self.screen = oS
 
         elif(c == ord('2')):
             menu = curses.newwin(y,x,0,0)
