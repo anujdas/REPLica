@@ -109,7 +109,7 @@ class cs164bRepl:
                 tokenCode = self.cs164bparser.tokenize(token)[0][0]
                 self.colorMap[tokenCode] = (colorNumber, attr)
 
-    def updateCurrentLine(self, s, tab=False, stringCompletion=False):
+    def updateCurrentLine(self, s, tab=False, stringCompletion=False, interruptFlag=False):
 
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
@@ -117,13 +117,13 @@ class cs164bRepl:
         #acquire suggestions
         suggestions = {}
         try:
+            if interruptFlag:
+                raise NameError
             lineTokens = self.cs164bparser.tokenize(s)
             if lineTokens:
                 suggestions = self.getSuggestions(lineTokens)
         except NameError, e:
-            #if not stringCompletion: #try tacking a quote on there, see if it fixes things
-            #    return self.updateCurrentLine(s+"\"",tab,True) #set tab=False?
-            lineTokens = []                         #TODO color line red, turn off suggestions
+            lineTokens = []
 
             self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s, curses.color_pair(1))
             self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
@@ -132,7 +132,6 @@ class cs164bRepl:
             return
 
         if tab: #TODO: optimize and clean up
-        #BUG: autocompletes to first fork, stays there! this is a problem
             if not self.inTab:
                 #if we are just entering the autocomplete, save this and the iterator
                 self.currentSuggestions = []
@@ -142,12 +141,10 @@ class cs164bRepl:
                 for k,v in suggestions.iteritems():
                     self.currentSuggestions.append(k)
                 self.inTab = True
-                #copy current line
-                #self.lineFragment = s
                 #save index into token
                 self.fragmentIndex = len(lineTokens[-1][1])
 
-            self.suggestionsIndex = (self.suggestionsIndex+1)%len(self.currentSuggestions) #shift to the next item
+            self.suggestionsIndex = (self.suggestionsIndex+1) % len(self.currentSuggestions) #shift to the next item
             selectedSuggestion = self.currentSuggestions[self.suggestionsIndex]
             s = s + selectedSuggestion[self.fragmentIndex:]
             self.suggestedLine = s
@@ -342,10 +339,12 @@ class cs164bRepl:
             while i != ord('\n') and i != ord(';'):
 
                 tab = False
+                interruptFlag = False
                 self.screen.refresh()
                 try:
                     i = self.screen.getch() #get next char
                 except KeyboardInterrupt:
+                    interruptFlag = True
                     i = ord('\n')
 
                 if self.inTab and i != 9:
@@ -359,7 +358,7 @@ class cs164bRepl:
                     try:
                         lineTokens = self.cs164bparser.tokenize(line)
                     except NameError, e:
-                        lineTokens = [] #TODO: tokenize lines
+                        lineTokens = []
 
                 elif i == ord('\n') or i == ord(';'):           # EOL characters
                     self.screen.addch(i)
@@ -383,24 +382,28 @@ class cs164bRepl:
                         line = history[hist_ptr]
 
                 elif i == 9:                                    # horizontal tab
-                    if line[-1].isspace() or line == "" or not self.getSuggestions(lineTokens):
+                    if line[-1].isspace() or line == "":
                         line += '\t'
                     else:
-                        tab = True
+                        suggestions = self.getSuggestions(lineTokens)
+                        if (type(suggestions) == dict and suggestions) or (type(suggestions) == tuple and suggestions[2]):
+                            tab = True
+                        else:
+                            line += '\t'
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
 
                 # refresh the display
-                self.updateCurrentLine(line, tab)
-
-            if not first_line:
-                to_parse = '\n' + line[:-1]
-            else:
-                to_parse = line[:-1]
-                first_line = False
-            if self.parse_line(to_parse):                       # do an incremental parse
-                first_line = True                               # check if a statement was completed
+                self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
+            if not interruptFlag:
+                if not first_line:
+                    to_parse = '\n' + line[:-1]
+                else:
+                    to_parse = line[:-1]
+                    first_line = False
+                if self.parse_line(to_parse):                       # do an incremental parse
+                    first_line = True                               # check if a statement was completed
 
             hist_ptr = 0
             history[hist_ptr] =  line[:-1]
