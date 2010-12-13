@@ -13,8 +13,15 @@ class cs164bRepl:
         #initialize parser
         cs164grammarFile = './cs164b.grm'
         self.cs164bparser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
+
+        # collect token information for later
         self.terminals = self.cs164bparser.terminals
-        self.newline = self.cs164bparser.tokenize("\n")
+        self.id_tkn = self.cs164bparser.tokenize('a')
+        self.dot_tkn = self.cs164bparser.tokenize('.')
+        self.open_tkn = self.cs164bparser.tokenize('(')
+        self.close_tkn = self.cs164bparser.tokenize(')')
+
+        # initialize a parser for future use
         self.parser = self.cs164bparser.parse()
         self.parser.next()
         self.colorMap = {}
@@ -168,12 +175,14 @@ class cs164bRepl:
             self.updateBox(self.curLineNumber+1, "", self.screen, self.infoBox)
             self.clearBox(self.infoBox)
 
-    def gracefulExit(self):
+    def gracefulExit(self, msg=None, ret=0):
         curses.nocbreak() #de-initialize curses
         self.screen.keypad(0)
         curses.echo()
         curses.endwin()
-        sys.exit(0)
+        if msg:
+            print msg
+        sys.exit(ret)
 
     def softError(self,s):
         self.printLine("Error: " + s, 1)

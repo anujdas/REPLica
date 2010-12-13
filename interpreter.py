@@ -255,10 +255,9 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                     REPL.printLine("null")
             elif e[0] == 'error':
                 if lookup(e[1]) != None:
-                    REPL.printLine(str(lookup(e[1])))
+                    REPL.gracefulExit("Error: " + str(lookup(e[1])), -1)
                 else:
-                    REPL.printLine("null")
-                REPL.gracefulExit()
+                    REPL.gracefulExit("Error", -1)
             elif e[0] == '+':
                 if type(lookup(e[2])) == type(lookup(e[3])) == type(0):
                     define(e[1], lookup(e[2]) + lookup(e[3]))
