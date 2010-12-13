@@ -300,7 +300,7 @@ class cs164bRepl:
         sys.exit(ret)
 
     def softError(self,s):
-        self.printLine("Error: " + s,1,curses.A_BOLD)
+        self.printLine("Error: " + s, 1, curses.A_BOLD)
 
     def main(self):
         i = 0
@@ -341,7 +341,6 @@ class cs164bRepl:
                 if self.inTab and i != 9:
                     self.inTab = False
                     line = self.suggestedLine
-                suggestions = {}
 
                 if i >= 32 and i < 127:                         # printable characters
                     line += chr(i)                              # add to the current buffer
@@ -350,7 +349,7 @@ class cs164bRepl:
 
                 elif i == ord('\n') or i == ord(';'):           # EOL characters
                     self.screen.addch(i)
-                    line += chr(i) #add to the current buffer
+                    line += chr(i)                              #add to the current buffer
 
                 elif (i == 127 or i == curses.KEY_BACKSPACE):   # handle backspace properly, plus a hack for mac
                     cursory, cursorx = self.screen.getyx()
@@ -386,8 +385,9 @@ class cs164bRepl:
             else:
                 to_parse = line[:-1]
                 first_line = False
-            if self.parse_line(to_parse):
-                first_line = True
+            if self.parse_line(to_parse):                       # do an incremental parse
+                first_line = True                               # check if a statement was completed
+
             hist_ptr = 0
             history[hist_ptr] =  line[:-1]
 
