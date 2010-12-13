@@ -53,6 +53,7 @@ class cs164bRepl:
 
 
     def parse_line(self,line):
+        complete = False                            # a flag set each time a statement is completed
         try:
             tokens = self.cs164bparser.tokenize(line)
             if tokens:                              # no need to consume non-code lines
@@ -63,6 +64,8 @@ class cs164bRepl:
                     # create and prep a new parser instance
                     self.parser = self.cs164bparser.parse()
                     self.parser.next()
+
+                    complete = True                 # mark the start of a new statement
 
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
@@ -75,6 +78,8 @@ class cs164bRepl:
             self.printLine(e.msg)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
+
+        return complete
 
     def printLine(self,s,code=0, attr = curses.A_NORMAL):
         self.clearBox(self.infoBox)
@@ -300,8 +305,9 @@ class cs164bRepl:
     def main(self):
         i = 0
         line = ""
+        first_line = True
 
-        history = [""]
+        history = []
         hist_ptr = 0
 
         #HERE BEGINS THE REPL
@@ -318,6 +324,8 @@ class cs164bRepl:
             # handle indenting appropriately
             line = "" + self.cs164bparser.parsedepth * '\t'
             self.updateCurrentLine(line)
+
+            history.insert(hist_ptr, line)
             i = 0
 
             # processes each character on this line
@@ -370,15 +378,18 @@ class cs164bRepl:
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
 
+                # refresh the display
                 self.updateCurrentLine(line, tab)
 
-                #uncomment to show tokens instead of suggestions
-                #self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox) 
-
-            self.parse_line(line[:-1])
-            if hist_ptr != 0:
-                hist_ptr = 0
-                history.insert(hist_ptr, line[:-1])
+            if not first_line:
+                to_parse = '\n' + line[:-1]
+            else:
+                to_parse = line[:-1]
+                first_line = False
+            if self.parse_line(to_parse):
+                first_line = True
+            hist_ptr = 0
+            history[hist_ptr] =  line[:-1]
 
 if __name__ == "__main__":
     repl = cs164bRepl()
