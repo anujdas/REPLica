@@ -352,6 +352,16 @@ class cs164bRepl:
             return (fragType[1], argList, dict(interpreter.complete(fragType[2])))  # (function name, arguments, tab completions)
 
     def showSuggestions(self, suggestions):
+
+        # special print method for dictionaries, since nested dicts (objects) are ugly as hell
+        def dictStr(d):
+            def getObjAttrs(obj):
+                supers = getObjAttrs(obj['__mt']) if '__mt' in obj and obj['__mt'] else []
+                return supers + [(k,obj[k]) for k in obj if not k.startswith('__')]
+
+            contents = sorted(["." + str(k) + ": " + ("{...}" if type(v) is dict else str(v)) for k,v in dict(getObjAttrs(d)).iteritems()])
+            return "{" + (reduce(lambda x,y: x + ", " + y, contents) if contents else "") + "}"
+
         output = ""                             # the string that goes in the box
         width = self.screen.getmaxyx()[1] - 6
         sugList = []
@@ -366,7 +376,7 @@ class cs164bRepl:
             for k,v in suggestions.iteritems():
                 # string representation of a single entry
                 if suggestions[k]:
-                    sugList.append(str(k) + ": " + str(suggestions[k]))
+                    sugList.append(str(k) + ": " + (dictStr(suggestions[k]) if type(suggestions[k]) is dict else str(suggestions[k])))
                 else:
                     sugList.append(str(k))
             output = output + reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
