@@ -96,6 +96,11 @@ class cs164bRepl:
 
     def updateCurrentLine(self, s, tab=False, stringCompletion=False):
     #
+    
+    	width = self.screen.getmaxyx()[1] - 6
+        padding = width - len(PROMPTSTR)
+        
+        
         #acquire suggestions
         suggestions = {}
         try:
@@ -106,7 +111,10 @@ class cs164bRepl:
             #if not stringCompletion: #try tacking a quote on there, see if it fixes things
             #    return self.updateCurrentLine(s+"\"",tab,True) #set tab=False?
             lineTokens = []                         #TODO color line red, turn off suggestions
+            
             self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s, curses.color_pair(1))
+            self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
+            self.clearBox(self.infoBox)
             self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
             return
             
@@ -132,7 +140,15 @@ class cs164bRepl:
             try:
                 lineTokens = self.cs164bparser.tokenize(s)
             except NameError, e:
-                lineTokens = []                         #TODO color line red
+                lineTokens = []
+                self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s, curses.color_pair(1))
+            	self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
+            	self.clearBox(self.infoBox)
+            	self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
+            	return                         
+        
+        if (s and s[-1].isspace()):
+        	suggestions = {}
         
         #generate color/string/attr triples, store into stringColorPairs
         stringColorPairs = []
@@ -140,8 +156,6 @@ class cs164bRepl:
             color, attr = self.colorMap.get(code,(0, curses.A_NORMAL))
             stringColorPairs.append((string, color, attr))
 
-        width = self.screen.getmaxyx()[1] - 6
-        padding = width - len(PROMPTSTR)
         x_pos = len(PROMPTSTR)
         str_index = 0
 
