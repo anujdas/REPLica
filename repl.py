@@ -10,6 +10,15 @@ CONTINUESTR = "    ... "
 
 class cs164bRepl:
     def __init__(self):
+        #initialize parser
+        cs164grammarFile = './cs164b.grm'
+        self.cs164bparser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
+        self.terminals = self.cs164bparser.terminals
+        self.newline = self.cs164bparser.tokenize("\n")
+        self.parser = self.cs164bparser.parse()
+        self.parser.next()
+        self.colorMap = {}
+        
         #initialize curses
         self.screen = curses.initscr()
         curses.start_color()
@@ -21,18 +30,13 @@ class cs164bRepl:
         self.screen.clear()
         self.screen.leaveok(False)
         self.infoBox = 0
+        
 
         #print the greeting and adjust the current line accordingly
         for i in range(len(greetings)):
             self.screen.addstr(i,0, greetings[i])
         self.curLineNumber = len(greetings)-1
-        cs164grammarFile = './cs164b.grm'
-        self.cs164bparser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
-        self.terminals = self.cs164bparser.terminals
-        self.newline = self.cs164bparser.tokenize("\n")
-        #self.color_mapping = {}
-        self.parser = self.cs164bparser.parse()
-        self.parser.next()
+        
 
     def init_colors(self):
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
@@ -105,11 +109,58 @@ class cs164bRepl:
         curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_WHITE)
         curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
         
+        operators = ["&&", "||", "<=", ">=", "==", "!=", "=", ",", ";"]
+        keywords = ["def", "in", "for", "null", "error","lambda", "print", \
+                     "if", "while", "in", "null","len", "type", "native", \
+                      "ite", "coroutine", "resume", "yield"]
+        quotedStrings = ["\"a string\""]
+        categories = [(operators, 2), (keywords, 3), (quotedStrings, 5)]
+        
+        #populate colorMap
+        for category, colorNumber in categories:
+            for token in category:
+                tokenCode = self.cs164bparser.tokenize(token)[0][0]
+                self.colorMap[tokenCode] = colorNumber
+                
+        
+        
     def updateCurrentLine(self, s):
+        suggestions = {}
+        try:
+            lineTokens = self.cs164bparser.tokenize(s)
+            if lineTokens:
+                suggestions = dict(interpreter.complete(lineTokens[-1]))
+        except NameError, e:
+            lineTokens = []                         #TODO color line red
+            
+        stringColorPairs = []
+        for code, string in lineTokens: #TODO 
+            #generate color/string pairs
+            color = self.colorMap.get(code,0)
+            stringColorPairs.append((string, color)) #generate pairs of strings and the corresponding color pair number
+            
+            
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
-        self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s + padding * ' ')
-        self.screen.move(self.curLineNumber, len(PROMPTSTR) + len(s))
+        
+        x_pos = len(PROMPTSTR)
+        str_index = 0
+        #loop that prints each token in different colors
+        for string, colorNumber in stringColorPairs:
+            #print remaining part of string in neutral color first
+            self.screen.addstr(self.curLineNumber, x_pos, s[str_index:s.find(string, str_index)], curses.color_pair(0))
+            x_pos += s.find(string, str_index) - str_index
+            str_index = s.find(string, str_index)
+            self.screen.addstr(self.curLineNumber, x_pos, string, curses.color_pair(colorNumber))
+            x_pos += len(string)
+            str_index += len(string)
+        if (str_index != len(s)):
+            self.screen.addstr(self.curLineNumber, x_pos, s[str_index:], curses.color_pair(0))
+        x_pos = len(PROMPTSTR) + len(s)
+        self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
+        self.screen.move(self.curLineNumber, x_pos) #move cursor to end of line
+        
+        self.updateBox(self.curLineNumber+1,"box",self.screen,self.infoBox)
 
     #helper function to clear the info box
     def clearBox(self,box):
@@ -173,7 +224,7 @@ class cs164bRepl:
 
         #HERE BEGINS THE REPL
         #processes each line until we see "ctrl-d"
-        while line != "exit\n":
+        while True:
 
             self.curLineNumber += 1
             self.clearBox(self.infoBox)
@@ -198,7 +249,7 @@ class cs164bRepl:
                 suggestions = {}
 
                 if i >= 32 and i < 127:                         # printable characters
-                    self.screen.addch(i)
+                    #self.screen.addch(i)
                     line += chr(i)                              # add to the current buffer
                     hist_ptr = 0
                     history[hist_ptr] = line                    # and save the line so far
@@ -207,7 +258,7 @@ class cs164bRepl:
                         if lineTokens:
                             suggestions = dict(interpreter.complete(lineTokens[-1]))
                     except NameError, e:
-                        lineTokens = []                         #TODO color line red
+                        lineTokens = [] #TODO: tokenize lines
 
                 elif i == ord('\n') or i == ord(';'):           # EOL characters
                     self.screen.addch(i)
@@ -217,13 +268,6 @@ class cs164bRepl:
                     cursory, cursorx = self.screen.getyx()
                     if (cursorx > len(PROMPTSTR)):              # but don't delete the prompt
                         line = line[:-1]
-                        try:
-                            lineTokens = self.cs164bparser.tokenize(line)
-                            if lineTokens:
-                                suggestions = dict(interpreter.complete(lineTokens[-1]))
-                        except NameError, e:
-                            lineTokens = []                     # TODO color line red
-                        self.screen.delch(cursory,cursorx-1)
 
                 elif i == curses.KEY_UP:
                     if hist_ptr < len(history) - 1:
@@ -231,20 +275,19 @@ class cs164bRepl:
                             history[hist_ptr] = line            # save the line so far, if it's new
                         hist_ptr = hist_ptr + 1                 # go back in time WHHOOOOOHHHO
                         line = history[hist_ptr]
-                        self.updateCurrentLine(line)
 
                 elif i == curses.KEY_DOWN:
                     if hist_ptr > 0:                            # if we can go forward, do so
                         hist_ptr = hist_ptr - 1
                         line = history[hist_ptr]
-                        self.updateCurrentLine(line)
 
                 elif i == 9:                                    # horizontal tab
                     1   # do some tab-related stuff here, maybe?
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
-
+                    
+                self.updateCurrentLine(line)
                 self.showSuggestions(suggestions)
 
             self.parse_line(line[:-1])
