@@ -115,7 +115,7 @@ class cs164bRepl:
         self.history = history
         return (success, message)
 
-    def parse_line(self,line):
+    def parse_line(self, line):
         complete = False                            # a flag set each time a statement is completed
         try:
             tokens = self.cs164bparser.tokenize(line)
@@ -182,7 +182,7 @@ class cs164bRepl:
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
 
-        #acquire suggestions
+        # disregard tokens, acquire suggestions
         suggestions = {}
         try:
             if interruptFlag:
@@ -199,7 +199,7 @@ class cs164bRepl:
             self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
             return
 
-        if tab: #TODO: optimize and clean up
+        if tab:
             if not self.inTab:
                 #if we are just entering the autocomplete, save this and the iterator
                 self.currentSuggestions = []
@@ -239,6 +239,11 @@ class cs164bRepl:
         x_pos = len(PROMPTSTR)
         str_index = 0
 
+        comment = ""
+        comment_pos = s.find('#')
+        if comment_pos >= 0:
+            s, comment = s[:comment_pos], s[comment_pos:]
+
         #loop that prints each token in different colors
         for string, colorNumber, attr in stringColorPairs:
             #print remaining part of string in neutral color first
@@ -254,6 +259,9 @@ class cs164bRepl:
             self.screen.addstr(self.curLineNumber, x_pos, s[str_index:], curses.color_pair(0))
 
         x_pos = len(PROMPTSTR) + len(s)
+        self.screen.addstr(self.curLineNumber, x_pos, comment, curses.color_pair(0))
+        x_pos += len(comment)
+
         self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
         self.showSuggestions(suggestions)
         self.screen.move(self.curLineNumber, x_pos) #move cursor to end of line
@@ -393,7 +401,7 @@ class cs164bRepl:
         if (c == ord('1')):
             menu = curses.newwin(y,x,0,0)
             menu.addstr(1,0,"Enter file name to load: ")
-            
+
             #save for later
             oS = self.screen
             self.screen = menu
@@ -403,7 +411,7 @@ class cs164bRepl:
             else:
                 s = "No 164 files here"
             self.updateBox(3, s,self.screen, self.infoBox)
-            
+
             menu.move(1, len("Enter file name to load: "))
             fileName = menu.getstr()
             #do stuff with fileName
@@ -414,7 +422,7 @@ class cs164bRepl:
                 menu.addstr(3,0,"Loading %s failed!" % fileName, curses.color_pair(1) | curses.A_BOLD)
                 menu.addstr(2,0,msg,curses.color_pair(1) | curses.A_BOLD)
             menu.getch()
-            
+
             self.screen = oS
 
         elif(c == ord('2')):
@@ -530,14 +538,14 @@ class cs164bRepl:
 
                 # refresh the display
                 self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
-            if not interruptFlag:
+            if not interruptFlag and len(lineTokens) > 0 and len(line) > 1:
                 if not first_line:
                     to_parse = '\n' + line[:-1]
                 else:
                     to_parse = line[:-1]
                     first_line = False
-                if self.parse_line(to_parse):                       # do an incremental parse
-                    first_line = True                               # check if a statement was completed
+                if self.parse_line(to_parse):                   # do an incremental parse
+                    first_line = True                           # check if a statement was completed
 
             hist_ptr = 0
             history[hist_ptr] =  line[:-1]
