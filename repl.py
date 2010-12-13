@@ -113,7 +113,7 @@ class cs164bRepl:
         try:
             lineTokens = self.cs164bparser.tokenize(s)
             if lineTokens:
-                suggestions = dict(interpreter.complete(lineTokens[-1]))
+                suggestions = self.getSuggestions(lineTokens)
         except NameError, e:
             #if not stringCompletion: #try tacking a quote on there, see if it fixes things
             #    return self.updateCurrentLine(s+"\"",tab,True) #set tab=False?
@@ -182,7 +182,7 @@ class cs164bRepl:
 
         x_pos = len(PROMPTSTR) + len(s)
         self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
-        self.showSuggestions(self.getSuggestions(lineTokens))
+        self.showSuggestions(suggestions)
         self.screen.move(self.curLineNumber, x_pos) #move cursor to end of line
 
     #helper function to clear the info box
