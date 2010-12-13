@@ -314,21 +314,33 @@ class cs164bRepl:
         y,x = self.screen.getmaxyx()
         menu = curses.newwin(y,x,0,0)
         menu.addstr(1,0,"1 - Load a file")
-        menu.addstr(2,0,"2 - Import a file")
+        menu.addstr(2,0,"2 - Save a file")
         menu.addstr(3,0,"3 - Exit")
         menu.touchwin()
         menu.refresh()
         c = menu.getch()
-        
+        del menu
+        curses.echo()
         if (c == ord('1')):
-            #load a file!
-            pass
+            menu = curses.newwin(y,x,0,0)
+            menu.addstr(1,0,"Enter file name to load: ")
+            menu.move(1, len("Enter file name to load: "))
+            fileName = menu.getstr()
+            #do stuff with fileName
+            menu.addstr(2,0,"Loaded. Press any key.")
+            menu.getch()
         elif(c == ord('2')):
-            #import a file!
-            pass
+            menu = curses.newwin(y,x,0,0)
+            menu.addstr(1,0,"Enter file name to save: ")
+            menu.move(1, len("Enter file name to save: "))
+            fileName = menu.getstr()
+            #do stuff with fileName
+            menu.addstr(2,0,"Saved. Press any key.")
+            menu.getch()
         elif(c == ord('3')):
             self.gracefulExit()
-        
+            
+        curses.noecho()
         del menu
         self.screen.touchwin()
         self.screen.refresh()
