@@ -347,6 +347,10 @@ class cs164bRepl:
                     line += chr(i)                              # add to the current buffer
                     hist_ptr = 0
                     history[hist_ptr] = line                    # and save the line so far
+                    try:
+                        lineTokens = self.cs164bparser.tokenize(line)
+                    except NameError, e:
+                        lineTokens = [] #TODO: tokenize lines
 
                 elif i == ord('\n') or i == ord(';'):           # EOL characters
                     self.screen.addch(i)
