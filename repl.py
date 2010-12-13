@@ -16,11 +16,11 @@ class cs164bRepl:
 
         # collect token information for later
         self.terminals = self.cs164bparser.terminals
-        self.id_tkn = self.cs164bparser.tokenize('a')
-        self.dot_tkn = self.cs164bparser.tokenize('.')
-        self.comma_tkn = self.cs164bparser.tokenize(',')
-        self.open_tkn = self.cs164bparser.tokenize('(')
-        self.close_tkn = self.cs164bparser.tokenize(')')
+        self.id_tkn = self.cs164bparser.tokenize('a')[0]
+        self.dot_tkn = self.cs164bparser.tokenize('.')[0]
+        self.comma_tkn = self.cs164bparser.tokenize(',')[0]
+        self.open_tkn = self.cs164bparser.tokenize('(')[0]
+        self.close_tkn = self.cs164bparser.tokenize(')')[0]
 
         # initialize a parser for future use
         self.parser = self.cs164bparser.parse()
