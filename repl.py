@@ -13,8 +13,16 @@ class cs164bRepl:
         #initialize parser
         cs164grammarFile = './cs164b.grm'
         self.cs164bparser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
+
+        # collect token information for later
         self.terminals = self.cs164bparser.terminals
-        self.newline = self.cs164bparser.tokenize("\n")
+        self.id_tkn = self.cs164bparser.tokenize('a')
+        self.dot_tkn = self.cs164bparser.tokenize('.')
+        self.comma_tkn = self.cs164bparser.tokenize(',')
+        self.open_tkn = self.cs164bparser.tokenize('(')
+        self.close_tkn = self.cs164bparser.tokenize(')')
+
+        # initialize a parser for future use
         self.parser = self.cs164bparser.parse()
         self.parser.next()
         self.colorMap = {}
@@ -58,12 +66,12 @@ class cs164bRepl:
 
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
-            self.softError("Error while tokenizing line: " + line)
+            self.printLine("Error while tokenizing line: " + line, 1)
             self.printLine(str(e), 1)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
         except SyntaxError, e:
-            self.softError("Error while parsing line: " + line)
+            self.printLine("Error while parsing line: " + line, 1)
             self.printLine(e.msg)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
@@ -95,9 +103,8 @@ class cs164bRepl:
                 self.colorMap[tokenCode] = (colorNumber, attr)
 
     def updateCurrentLine(self, s, tab=False, stringCompletion=False):
-    #
     
-    	width = self.screen.getmaxyx()[1] - 6
+        width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
         
         
@@ -142,13 +149,13 @@ class cs164bRepl:
             except NameError, e:
                 lineTokens = []
                 self.screen.addstr(self.curLineNumber, len(PROMPTSTR), s, curses.color_pair(1))
-            	self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
-            	self.clearBox(self.infoBox)
-            	self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
-            	return                         
+                self.screen.addstr(self.curLineNumber, len(s)+len(PROMPTSTR), padding * ' ')
+                self.clearBox(self.infoBox)
+                self.screen.move(self.curLineNumber, len(s)+len(PROMPTSTR))
+                return                         
         
         if (s and s[-1].isspace()):
-        	suggestions = {}
+                suggestions = {}
         
         #generate color/string/attr triples, store into stringColorPairs
         stringColorPairs = []
@@ -168,14 +175,14 @@ class cs164bRepl:
             self.screen.addstr(self.curLineNumber, x_pos, string, curses.color_pair(colorNumber) | attr) #bold/underline?
             x_pos += len(string)
             str_index += len(string)
-            
+
         #print rest of string if we're not done
         if (str_index != len(s)):
             self.screen.addstr(self.curLineNumber, x_pos, s[str_index:], curses.color_pair(0))
-        
+
         x_pos = len(PROMPTSTR) + len(s)
         self.screen.addstr(self.curLineNumber, x_pos, padding * ' ')
-        self.showSuggestions(suggestions)
+        self.showSuggestions(self.getSuggestions(lineTokens))
         self.screen.move(self.curLineNumber, x_pos) #move cursor to end of line
 
     #helper function to clear the info box
@@ -201,10 +208,68 @@ class cs164bRepl:
         box.touchwin()
         box.refresh()
 
+    def getSuggestions(self, tokens):
+
+        def findFunctionalUnit(tokens):
+            if not tokens:                                              # can't fill the hole in your heart, I mean, code
+                return None
+
+            fragment = tokens[-1][1]                                    # the text to complete
+            env = interpreter.globEnv                                   # env to look in
+            inparens = []                                               # call stack
+
+            # iterate through the line to guess type of fragment
+            for i in xrange(len(tokens) - 2):
+                if tokens[i+1][0] == self.dot_tkn[0]:
+                    env = interpreter.locateInEnv(tokens[i][1], env)    # go one object in
+                    if type(env) != dict:
+                        return None                                     # no such variable, or not an object
+                elif tokens[i+1][0] == self.open_tkn[0]:                # make sure this is actually a function
+                    if isinstance(interpreter.locateInEnv(tokens[i], env), interpreter.FunVal):
+                        inparens.append(tokens[i][1])                   # if so, add it to the stack
+                        env = interpreter.globEnv
+                    else:
+                        return None                                     # otherwise, fail
+                elif tokens[i][0]  == self.open_tkn[0]:                 # generic parentheses
+                    inparens.append('(')
+                    env = interpreter.globEnv
+                elif tokens[i][0] == self.close_tkn[0]:                 # pop out of the current paren stack
+                    inparens.pop()
+                else:
+                    env = interpreter.globEnv                           # out of this object, back to global environment
+
+            # Now attempt to determine the type of the fragment, and what is needed to get its completions
+            if env is interpreter.globEnv:                              # not in an object
+                if inparens and inparens[-1] != '(':                    # in a function call
+                    return ('fun', inparens[-1], fragment, env)
+                else:                                                   # just plain parentheses
+                    return ('none', fragment)
+            else:
+                return ('obj', env, fragment)
+
+        fragType = findFunctionalUnit(tokens)
+        if not fragType:
+            return None
+        elif fragType[0] == 'none':
+            return dict(interpreter.complete(fragType[1]))
+        elif fragType[0] == 'obj':
+            return dict(interpreter.completeObj(fragType[2], fragType[1]))
+        elif fragType[0] == 'fun':
+            funVal = fragType[3][fragType[1]]
+            argList = funVal.fun.argList
+            return (fragType[1], argList, dict(interpreter.complete(fragType[2])))  # (function name, arguments, tab completions)
+
     def showSuggestions(self, suggestions):
         if suggestions:
+            output = ""                             # the string that goes in the box
             width = self.screen.getmaxyx()[1] - 6
             sugList = []
+
+            # special case for functions: print the function definition first
+            if type(suggestions) == tuple:
+                output = suggestions[0] + "(" + (reduce(lambda x,y: x+","+y, suggestions[1]) if suggestions[1] else "") + ")\n"
+                suggestions = suggestions[2]
+
             for k,v in suggestions.iteritems():
                 # pretty representation of functions - add others as needed
                 if isinstance(v, interpreter.FunVal):
@@ -215,18 +280,21 @@ class cs164bRepl:
                     sugList.append(str(k) + ": " + str(suggestions[k]))
                 else:
                     sugList.append(str(k))
-            suggestions = reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
-            self.updateBox(self.curLineNumber+1, suggestions, self.screen, self.infoBox)
+
+            output = output + reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
+            self.updateBox(self.curLineNumber+1, output, self.screen, self.infoBox)
         else:
             self.updateBox(self.curLineNumber+1, "", self.screen, self.infoBox)
             self.clearBox(self.infoBox)
 
-    def gracefulExit(self):
+    def gracefulExit(self, msg=None, ret=0):
         curses.nocbreak() #de-initialize curses
         self.screen.keypad(0)
         curses.echo()
         curses.endwin()
-        sys.exit(0)
+        if msg:
+            print msg
+        sys.exit(ret)
 
     def softError(self,s):
         self.printLine("Error: " + s,1,curses.A_BOLD)
@@ -256,8 +324,7 @@ class cs164bRepl:
 
             # processes each character on this line
             while i != ord('\n') and i != ord(';'):
-                
-                tab = False
+
                 self.screen.refresh()
                 try:
                     i = self.screen.getch() #get next char
@@ -306,7 +373,7 @@ class cs164bRepl:
                     if line[-1].isspace() or line == "":
                         line += '\t'
                     else:
-                        tab = True
+                    1   # do some tab-related stuff here, maybe?
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
