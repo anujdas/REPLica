@@ -61,21 +61,21 @@ class cs164bRepl:
             self.parser = self.cs164bparser.parse()
             self.parser.next()
 
-    def printLine(self,s):
+    def printLine(self,s,code):
         self.clearBox(self.infoBox)
         self.curLineNumber += 1
-        self.screen.addstr(self.curLineNumber, 0, s) # print the prompt
+        self.screen.addstr(self.curLineNumber, 0, s,curses.color_pair(code)) # print the prompt
 
     def init_colors(self):
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK) #errors
-        curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_WHITE) #keywords
+        curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK) #keywords
         curses.init_pair(3, curses.COLOR_CYAN, curses.COLOR_BLACK)
         curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_WHITE)
         curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
         operators = ["&&", "||", "<=", ">=", "==", "!=", "=", ",", ";"]
         keywords = ["def", "in", "for", "null", "error","lambda", "print", \
-                     "if", "while", "in", "null","len", "type", "native", \
+                     "if", "while", "in", "null","len", "native", \
                       "ite", "coroutine", "resume", "yield"]
         quotedStrings = ["\"a string\""]
         categories = [(operators, 2), (keywords, 3), (quotedStrings, 5)]
@@ -113,7 +113,7 @@ class cs164bRepl:
             self.screen.addstr(self.curLineNumber, x_pos, s[str_index:s.find(string, str_index)], curses.color_pair(0))
             x_pos += s.find(string, str_index) - str_index
             str_index = s.find(string, str_index)
-            self.screen.addstr(self.curLineNumber, x_pos, string, curses.color_pair(colorNumber))
+            self.screen.addstr(self.curLineNumber, x_pos, string, curses.color_pair(colorNumber)) #bold/underline?
             x_pos += len(string)
             str_index += len(string)
 
@@ -176,7 +176,7 @@ class cs164bRepl:
         sys.exit(0)
 
     def softError(self,s):
-        self.printLine("Error: " + s, 1)
+        self.printLine("Error: " + s,1)
 
     def main(self):
         i = 0
@@ -251,6 +251,7 @@ class cs164bRepl:
                     self.gracefulExit()
 
                 self.updateCurrentLine(line)
+                self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox)
                 #self.showSuggestions(suggestions)
 
             self.parse_line(line[:-1])

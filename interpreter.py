@@ -418,6 +418,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
 
             else: raise SyntaxError("Illegal instruction: %s " % str(e))
         except TypeError, e:
+            print e
             REPL.softError("Type error: " + str(e))
             return
         except NameError:
