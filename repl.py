@@ -6,13 +6,15 @@ greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>.","Press F2 to see the 
 PROMPTSTR =   "cs164b> "
 CONTINUESTR = "    ... "
 
-#TODO: ;, #, colors
-
 class cs164bRepl:
     def __init__(self):
         #initialize parser
         cs164grammarFile = './cs164b.grm'
         self.cs164bparser = parser_generator.makeParser(grammar_parser.parse(open(cs164grammarFile).read()))
+
+        # vars for file saving
+        self.history = []           # history of succesfully executed lines
+        self.exec_fail = False      # otherwise, how would we know if it succeeded?
 
         # collect token information for later
         self.terminals = self.cs164bparser.terminals
@@ -52,6 +54,56 @@ class cs164bRepl:
             self.screen.addstr(i,0, greetings[i])
         self.curLineNumber = len(greetings)-1
 
+    # quick macro for loading in a file, based on the line-by-line parser model.
+    # TODO: change this to fast-fail; if a file has an error, we want to know immediately
+    # and parsing the rest of the file is a waste.
+    # I'll change this after the current version is merged into the REPL.
+    def loadProgram(p_file):
+
+        # save the history
+        history = self.history[:]
+
+        # grab the token for a newline so we know how to pad our lines
+        newline = self.cs164bparser.tokenize("\n")
+
+        # load in the program file
+        prog = re.findall('[^\r\n;]+', re.sub("#.*\r?\n", "", open(p_file).read()))
+
+        # initialize a parser instance, i.e., a coroutine, and prep it
+        parser = self.cs164bparser.parse()
+        parser.next()
+
+        # no newline insert before the first line of a statement
+        first_line = True
+        for l in prog:
+            try:
+                tokens = self.cs164bparser.tokenize(l)
+                if tokens:                              # no need to consume non-code lines
+                    if not first_line:                  # separate lines w/ newline characters
+                        tokens = newline + tokens
+                    input_ast = parser.send(tokens)     # parse this line
+                    first_line = False
+                    if type(input_ast) == tuple:        # parsing completed on this line; execute result
+                        self.exec_fail = False
+                        interpreter.ExecGlobalStmt(input_ast)
+                        if self.exec_fail:
+                            raise Exception
+
+                        # create and prep a new parser instance
+                        parser = self.cs164bparser.parse()
+                        parser.next()
+                        first_line = True
+
+            # soft failure - if there's an error, print a helpful message and create a new parser
+            except SyntaxError, e:
+                self.printLine("Error while parsing line: " + l, 1, curses.A_BOLD)
+                self.printLine(e.msg)
+                break
+            except Exception:
+                break
+
+        # restore history
+        self.history = history
 
     def parse_line(self,line):
         complete = False                            # a flag set each time a statement is completed
@@ -60,7 +112,10 @@ class cs164bRepl:
             if tokens:                              # no need to consume non-code lines
                 input_ast = self.parser.send(tokens)     # parse this line
                 if type(input_ast) == tuple:        # parsing completed on this line; execute result
+                    self.exec_fail = False
                     interpreter.ExecGlobalStmt(input_ast,self)
+                    if not self.exec_fail:
+                        self.history.append(line)
 
                     # create and prep a new parser instance
                     self.parser = self.cs164bparser.parse()
@@ -307,9 +362,10 @@ class cs164bRepl:
             print msg
         sys.exit(ret)
 
-    def softError(self,s):
+    def softError(self, s):
         self.printLine("Error: " + s, 1, curses.A_BOLD)
-    
+        self.exec_fail = True
+
     def menu(self):
         y,x = self.screen.getmaxyx()
         menu = curses.newwin(y,x,0,0)
