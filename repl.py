@@ -198,7 +198,7 @@ class cs164bRepl:
                 self.screen.addstr(self.curLineNumber, 0, CONTINUESTR) # print the secondary prompt
 
             # handle indenting appropriately
-            line = "" + self.cs164bparser.parsedepth * "   "
+            line = "" + self.cs164bparser.parsedepth * '\t'
             self.updateCurrentLine(line)
             i = 0
 
@@ -246,7 +246,7 @@ class cs164bRepl:
                         line = history[hist_ptr]
 
                 elif i == 9:                                    # horizontal tab
-                    1   # do some tab-related stuff here, maybe?
+                    line += '\t'       # do some tab-related stuff here, maybe?
 
                 elif (i == 4):                                  # exit on EOF (ctrl+d)
                     self.gracefulExit()
