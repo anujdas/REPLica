@@ -61,7 +61,7 @@ class cs164bRepl:
             self.parser = self.cs164bparser.parse()
             self.parser.next()
 
-    def printLine(self,s,code, attr = curses.A_NORMAL):
+    def printLine(self,s,code=0, attr = curses.A_NORMAL):
         self.clearBox(self.infoBox)
         self.curLineNumber += 1
         self.screen.addstr(self.curLineNumber, 0, s,curses.color_pair(code) | attr) # print the prompt
@@ -73,7 +73,8 @@ class cs164bRepl:
         curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_WHITE)
         curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
-        operators = ["&&", "||", "<=", ">=", "==", "!=", "=", ",", ";"]
+        operators = ["&&", "||", "<=", ">=", "==", "!=", "=", ",", \
+                         ";","+","*","/","-"]
         keywords = ["def", "in", "for", "null", "error","lambda", "print", \
                      "if", "while", "in", "null","len", "native", \
                       "ite", "coroutine", "resume", "yield"]
@@ -252,7 +253,8 @@ class cs164bRepl:
 
                 self.updateCurrentLine(line)
                 
-                #self.showSuggestions(suggestions)
+                #uncomment to show tokens instead of suggestions
+                #self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox) 
 
             self.parse_line(line[:-1])
             hist_ptr = 0
