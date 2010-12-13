@@ -51,20 +51,20 @@ class cs164bRepl:
 
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
-            self.printLine("Error while tokenizing line: " + line, 1)
+            self.softError("Error while tokenizing line: " + line)
             self.printLine(str(e), 1)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
         except SyntaxError, e:
-            self.printLine("Error while parsing line: " + line, 1)
+            self.softError("Error while parsing line: " + line)
             self.printLine(e.msg)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
 
-    def printLine(self,s,code):
+    def printLine(self,s,code, attr = curses.A_NORMAL):
         self.clearBox(self.infoBox)
         self.curLineNumber += 1
-        self.screen.addstr(self.curLineNumber, 0, s,curses.color_pair(code)) # print the prompt
+        self.screen.addstr(self.curLineNumber, 0, s,curses.color_pair(code) | attr) # print the prompt
 
     def init_colors(self):
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK) #errors
@@ -176,7 +176,7 @@ class cs164bRepl:
         sys.exit(0)
 
     def softError(self,s):
-        self.printLine("Error: " + s,1)
+        self.printLine("Error: " + s,1,curses.A_BOLD)
 
     def main(self):
         i = 0
