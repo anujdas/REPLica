@@ -184,6 +184,12 @@ class cs164bRepl:
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
 
+        # separate out any comments before doing anything else
+        comment = ""
+        comment_pos = s.find('#')
+        if comment_pos >= 0:
+            s, comment = s[:comment_pos], s[comment_pos:]
+
         # disregard tokens, acquire suggestions
         suggestions = {}
         try:
@@ -241,11 +247,6 @@ class cs164bRepl:
         x_pos = len(PROMPTSTR)
         str_index = 0
 
-        comment = ""
-        comment_pos = s.find('#')
-        if comment_pos >= 0:
-            s, comment = s[:comment_pos], s[comment_pos:]
-
         #loop that prints each token in different colors
         for string, colorNumber, attr in stringColorPairs:
             #print remaining part of string in neutral color first
@@ -259,8 +260,9 @@ class cs164bRepl:
         #print rest of string if we're not done
         if (str_index != len(s)):
             self.screen.addstr(self.curLineNumber, x_pos, s[str_index:], curses.color_pair(0))
-
         x_pos = len(PROMPTSTR) + len(s)
+
+        # print any comments, if they're there
         self.screen.addstr(self.curLineNumber, x_pos, comment, curses.color_pair(6))
         x_pos += len(comment)
 
