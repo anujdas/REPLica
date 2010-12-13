@@ -88,7 +88,7 @@ class cs164bRepl:
         # soft failure - if there's an error, print a helpful message and create a new parser
         except NameError, e:
             self.printLine("Error while tokenizing line: " + line)
-            self.printLine(e.msg)
+            self.printLine(str(e))
             self.parser = self.cs164bparser.parse()
             self.parser.next()
         except SyntaxError, e:
@@ -192,13 +192,13 @@ class cs164bRepl:
             for k,v in suggestions.iteritems():
                 # pretty representation of functions - add others as needed
                 if isinstance(v, interpreter.FunVal):
-                    if v.fun.argList:
-                        suggestions[k] = "function(" + reduce(lambda x,y: x+","+y, v.fun.argList) + ")"
-                    else:
-                        suggestions[k] = "function()"
+                    suggestions[k] = "function(" + (reduce(lambda x,y: x+","+y, v.fun.argList) if v.fun.argList else "") + ")"
 
                 # string representation of a single entry
-                sugList.append(str(k) + ": " + str(suggestions[k]))
+                if suggestions[k]:
+                    sugList.append(str(k) + ": " + str(suggestions[k]))
+                else:
+                    sugList.append(str(k))
             suggestions = reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
             self.updateBox(self.curLineNumber+1, suggestions, self.screen, self.infoBox)
         else:

@@ -6,6 +6,7 @@ import sys, getopt, parser_generator, grammar_parser, repl
 
 # global environment.  Persists across invocations of the ExecGlobal function 
 globEnv = {'__up__':None}
+cs164b_builtins = ["def", "error", "print", "if", "while", "for", "in", "null", "len", "lambda", "type", "native", "ite", "coroutine", "resume", "yield", "&&", "||", "<=", ">=", "==", "!="]
 cs164parser = None
 
 def ExecGlobal(ast):
@@ -16,7 +17,30 @@ def ExecGlobalStmt(ast,repl = None):
 # get tab-completion results for a given string fragment
 # TODO: look up through dictionaries, objects, builtins, etc.
 def complete(fragment, env=globEnv):
-    return map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
+    lookups = map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
+    builtins = map(lambda k: (k, None), filter(lambda name: name.startswith(fragment), cs164b_builtins))
+    return filter(lambda s: not s[0].startswith('__'), lookups + builtins)
+
+# same as above, except for dictionary/object lookups
+# go by Lua standard: __mt/__index for lookups
+def completeObj(fragment, obj, env=globEnv):
+
+    # recursively collect all attributes belonging to this function and its parent classes
+    def lookupObjectAttrs(obj):
+        attrs = complete(fragment, env=obj)
+        if '__mt' in obj:
+            attrs = attrs + lookupObjectAttrs(fragment, obj['__mt'])
+        if '__index' in obj:
+            attrs = attrs + lookupObjectAttrs(fragment, obj['__index'])
+        return attrs
+
+    return lookupObjectAttrs(env[obj]) if obj in env else []
+
+# same as above, again, but for function argument completions
+# NOTE: this does not return a list of tuples, but instead a list of arguments. DO NOT SORT!
+def completeFunArgs(fragment, fun, env=globEnv):
+    argList = env[fun].fun.argList if (fun in env and isinstance(env[fun], FunVal)) else []
+    return filter(lambda arg: arg.startswith(fragment), argList)
 
 # Abstract syntax of bytecode:
 #
@@ -169,8 +193,9 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
         stmts: array of bytecodes, pc: index into stmts where the execution should (re)start
         callStack: the stack of calling context of calls pending in the coroutine
         env: the current environment. """
+
     def lookup(name):
-        def _lookup(name,env):
+        def _lookup(name, env):
             if env.has_key(name):
                 return env[name]
             elif env["__up__"]:
@@ -179,22 +204,24 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                 REPL.softError("No such variable: " + name)
                 raise NameError
         return _lookup(name, env)
+
     def lookupObject(obj, var):
         if var in obj:
             return obj[var]
         elif '__mt' not in obj or not obj['__mt']:
-            REPL.softError("No such attribute " + var + " in " + obj)
+            REPL.softError("No such attribute %s in %s." % (var, obj))
             raise NameError
         else:
             return lookupObject(obj['__mt'], var)
-    def update(name,val):
+
+    def update(name, val):
         def _update(name, env, val):
             if env.has_key(name):
                 env[name] = val
             elif env["__up__"]:
                 _update(name, env["__up__"], val)
             else:
-                REPL.softError("Couldn't update variable: " + name)
+                REPL.softError("Can't assign value to uninitialized variable: " + name)
                 raise NameError
         _update(name, env, val)
     def define(name,val):
@@ -209,7 +236,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
         define(lhsVar, fun.corArg)
 
     if pc == -1:
-        REPL.softError("This coroutine has terminated already!")       # this is a coroutine that has ended
+        REPL.softError("Attempted to resume a terminated coroutine.")       # this is a coroutine that has ended
         return
 
     while True:
@@ -293,7 +320,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                 func    = lookup(e[2])
 
                 if not isinstance(func, FunVal):
-                    REPL.softError("%s is not a function." % e[2])   # not a function :(
+                    REPL.softError("Can't call that; not a function.")   # not a function :(
                     return
 
                 fbody   = func.fun.body
@@ -341,7 +368,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
 
                 # error check - needs to be a function
                 if not isinstance(funcdef, FunVal) or funcdef.coroutine:
-                    REPL.softError("Can't wrap a non-function %s in a coroutine" % e[2] )   # not a function :(
+                    REPL.softError("Can't wrap non-function %s in a coroutine" % e[2] )   # not a function :(
                     return
 
                 # copy the env, so we don't clobber the lambda
@@ -362,12 +389,12 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
 
                 # error check
                 if not isinstance(co, FunVal) or not co.coroutine:
-                    REPL.softError("%s is not a coroutine." % e[2])   # not a coroutine :(
+                    REPL.softError("Can't resume %s: not a coroutine." % e[2])     # not a coroutine :(
                     return
 
                 # can't resume ourselves. double self, what does it mean?
                 if co == fun:
-                    REPL.softError("Can't resume ourselves. double self, what does it mean?")   # SO INTENSE
+                    REPL.softError("Can't resume ourselves...")         # SO INTENSE
                     return
 
                 co.corArg = lookup(e[3])
@@ -390,11 +417,11 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                     return
 
             else: raise SyntaxError("Illegal instruction: %s " % str(e))
-        except TypeError:
-            REPL.softError("Type error")
+        except TypeError, e:
+            REPL.softError("Type error: " + str(e))
             return
         except NameError:
-        	return
+            return
     return NeverReached
 
 def desugar(ast):
