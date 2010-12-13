@@ -19,7 +19,28 @@ def ExecGlobalStmt(ast,repl = None):
 def complete(fragment, env=globEnv):
     lookups = map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
     builtins = map(lambda k: (k, None), filter(lambda name: name.startswith(fragment), cs164b_builtins))
-    return lookups + builtins
+    return filter(lambda s: not s[0].startswith('__'), lookups + builtins)
+
+# same as above, except for dictionary/object lookups
+# go by Lua standard: __mt/__index for lookups
+def completeObj(fragment, obj, env=globEnv):
+
+    # recursively collect all attributes belonging to this function and its parent classes
+    def lookupObjectAttrs(obj):
+        attrs = complete(fragment, env=obj)
+        if '__mt' in obj:
+            attrs = attrs + lookupObjectAttrs(fragment, obj['__mt'])
+        if '__index' in obj:
+            attrs = attrs + lookupObjectAttrs(fragment, obj['__index'])
+        return attrs
+
+    return lookupObjectAttrs(env[obj]) if obj in env else []
+
+# same as above, again, but for function argument completions
+# NOTE: this does not return a list of tuples, but instead a list of arguments. DO NOT SORT!
+def completeFunArgs(fragment, fun, env=globEnv):
+    argList = env[fun].fun.argList if (fun in env and isinstance(env[fun], FunVal)) else []
+    return filter(lambda arg: arg.startswith(fragment), argList)
 
 # Abstract syntax of bytecode:
 #
@@ -172,6 +193,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
         stmts: array of bytecodes, pc: index into stmts where the execution should (re)start
         callStack: the stack of calling context of calls pending in the coroutine
         env: the current environment. """
+
     def lookup(name):
         def _lookup(name, env):
             if env.has_key(name):
@@ -182,6 +204,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
                 REPL.softError("No such variable: " + name)
                 raise NameError
         return _lookup(name, env)
+
     def lookupObject(obj, var):
         if var in obj:
             return obj[var]
@@ -190,6 +213,7 @@ def Resume(stmts, env={'__up__': None}, pc=0, callStack=[], fun=None, REPL=None)
             raise NameError
         else:
             return lookupObject(obj['__mt'], var)
+
     def update(name, val):
         def _update(name, env, val):
             if env.has_key(name):
