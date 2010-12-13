@@ -382,7 +382,7 @@ class cs164bRepl:
                         line = history[hist_ptr]
 
                 elif i == 9:                                    # horizontal tab
-                    if line[-1].isspace() or line == "":
+                    if line == "" or line[-1].isspace():
                         line += '\t'
                     else:
                         suggestions = self.getSuggestions(lineTokens)
