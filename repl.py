@@ -78,13 +78,13 @@ class cs164bRepl:
                      "if", "while", "in", "null","len", "native", \
                       "ite", "coroutine", "resume", "yield"]
         quotedStrings = ["\"a string\""]
-        categories = [(operators, 2), (keywords, 3), (quotedStrings, 5)]
+        categories = [(operators, 2, curses.A_BOLD), (keywords, 3, curses.A_NORMAL), (quotedStrings, 5, curses.A_NORMAL)]
 
         #populate colorMap
-        for category, colorNumber in categories:
+        for category, colorNumber, attr in categories:
             for token in category:
                 tokenCode = self.cs164bparser.tokenize(token)[0][0]
-                self.colorMap[tokenCode] = colorNumber
+                self.colorMap[tokenCode] = (colorNumber, attr)
 
     def updateCurrentLine(self, s):
         suggestions = {}
@@ -98,8 +98,8 @@ class cs164bRepl:
         stringColorPairs = []
         for code, string in lineTokens: #TODO 
             #generate color/string pairs
-            color = self.colorMap.get(code,0)
-            stringColorPairs.append((string, color)) #generate pairs of strings and the corresponding color pair number
+            color, attr = self.colorMap.get(code,(0, curses.A_NORMAL))
+            stringColorPairs.append((string, color, attr)) #generate pairs of strings and the corresponding color pair number
 
         width = self.screen.getmaxyx()[1] - 6
         padding = width - len(PROMPTSTR)
@@ -108,12 +108,12 @@ class cs164bRepl:
         str_index = 0
 
         #loop that prints each token in different colors
-        for string, colorNumber in stringColorPairs:
+        for string, colorNumber, attr in stringColorPairs:
             #print remaining part of string in neutral color first
             self.screen.addstr(self.curLineNumber, x_pos, s[str_index:s.find(string, str_index)], curses.color_pair(0))
             x_pos += s.find(string, str_index) - str_index
             str_index = s.find(string, str_index)
-            self.screen.addstr(self.curLineNumber, x_pos, string, curses.color_pair(colorNumber)) #bold/underline?
+            self.screen.addstr(self.curLineNumber, x_pos, string, curses.color_pair(colorNumber) | attr) #bold/underline?
             x_pos += len(string)
             str_index += len(string)
 
@@ -251,7 +251,7 @@ class cs164bRepl:
                     self.gracefulExit()
 
                 self.updateCurrentLine(line)
-                self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox)
+                
                 #self.showSuggestions(suggestions)
 
             self.parse_line(line[:-1])
