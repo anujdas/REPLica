@@ -225,15 +225,18 @@ class cs164bRepl:
             inparens = []                                               # call stack
 
             # iterate through the line to guess type of fragment
-            for i in xrange(len(tokens) - 2):
+            i = 0
+            while i < len(tokens) - 2:
                 if tokens[i+1][0] == self.dot_tkn[0]:
                     env = interpreter.locateInEnv(tokens[i][1], env)    # go one object in
+                    i += 1                                              # and skip over the dot
                     if type(env) != dict:
                         return None                                     # no such variable, or not an object
                 elif tokens[i+1][0] == self.open_tkn[0]:                # make sure this is actually a function
-                    if isinstance(interpreter.locateInEnv(tokens[i], env), interpreter.FunVal):
+                    if isinstance(interpreter.locateInEnv(tokens[i][1], env), interpreter.FunVal):
                         inparens.append(tokens[i][1])                   # if so, add it to the stack
                         env = interpreter.globEnv
+                        i += 1
                     else:
                         return None                                     # otherwise, fail
                 elif tokens[i][0]  == self.open_tkn[0]:                 # generic parentheses
@@ -243,6 +246,7 @@ class cs164bRepl:
                     inparens.pop()
                 else:
                     env = interpreter.globEnv                           # out of this object, back to global environment
+                i += 1
 
             # Now attempt to determine the type of the fragment, and what is needed to get its completions
             if env is interpreter.globEnv:                              # not in an object
@@ -266,32 +270,31 @@ class cs164bRepl:
             return (fragType[1], argList, dict(interpreter.complete(fragType[2])))  # (function name, arguments, tab completions)
 
     def showSuggestions(self, suggestions):
+
+        output = ""                             # the string that goes in the box
+        width = self.screen.getmaxyx()[1] - 6
+        sugList = []
+
+        # special case for functions: print the function definition first
+        if type(suggestions) == tuple:
+            output = suggestions[0] + "(" + (reduce(lambda x,y: x+", "+y, suggestions[1]) if suggestions[1] else "") + ")"
+            output += (width - len(output)) * ' '
+            suggestions = suggestions[2]
+
         if suggestions:
-            output = ""                             # the string that goes in the box
-            width = self.screen.getmaxyx()[1] - 6
-            sugList = []
-
-            # special case for functions: print the function definition first
-            if type(suggestions) == tuple:
-                output = suggestions[0] + "(" + (reduce(lambda x,y: x+","+y, suggestions[1]) if suggestions[1] else "") + ")\n"
-                suggestions = suggestions[2]
-
             for k,v in suggestions.iteritems():
-                # pretty representation of functions - add others as needed
-                if isinstance(v, interpreter.FunVal):
-                    suggestions[k] = "function(" + (reduce(lambda x,y: x+","+y, v.fun.argList) if v.fun.argList else "") + ")"
-
                 # string representation of a single entry
                 if suggestions[k]:
                     sugList.append(str(k) + ": " + str(suggestions[k]))
                 else:
                     sugList.append(str(k))
-
             output = output + reduce(lambda x,y: x + "\t\t\t" + y, sorted(sugList))
             self.updateBox(self.curLineNumber+1, output, self.screen, self.infoBox)
-        else:
+        elif output == "":
             self.updateBox(self.curLineNumber+1, "", self.screen, self.infoBox)
             self.clearBox(self.infoBox)
+        else:
+            self.updateBox(self.curLineNumber+1, output, self.screen, self.infoBox)
 
     def gracefulExit(self, msg=None, ret=0):
         curses.nocbreak() #de-initialize curses
