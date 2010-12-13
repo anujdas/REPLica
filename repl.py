@@ -160,8 +160,9 @@ class cs164bRepl:
         curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK) #errors
         curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK) #keywords
         curses.init_pair(3, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_WHITE)
+        curses.init_pair(4, curses.COLOR_YELLOW, curses.COLOR_BLACK)
         curses.init_pair(5, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_WHITE) #comments
 
         operators = ["&&", "||", "<=", ">=", "==", "!=", "=", ",", \
                          ";","+","*","/","-","(",")","[","]","{","}"]
@@ -169,7 +170,8 @@ class cs164bRepl:
                      "if", "while", "in", "null","len", "native", \
                       "ite", "coroutine", "resume", "yield"]
         quotedStrings = ["\"a string\""]
-        categories = [(operators, 2, curses.A_BOLD), (keywords, 3, curses.A_NORMAL), (quotedStrings, 5, curses.A_NORMAL)]
+        number = ["5"]
+        categories = [(operators, 2, curses.A_BOLD), (keywords, 3, curses.A_NORMAL), (quotedStrings, 5, curses.A_NORMAL), (number, 4,curses.A_NORMAL)]
 
         #populate colorMap
         for category, colorNumber, attr in categories:
@@ -530,6 +532,7 @@ class cs164bRepl:
 
                 # refresh the display
                 self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
+                self.updateBox(self.curLineNumber+1, str(lineTokens), self.screen, self.infoBox)
             if not interruptFlag:
                 if not first_line:
                     to_parse = '\n' + line[:-1]
