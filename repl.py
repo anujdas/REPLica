@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import curses, sys, textwrap
+import curses, sys, textwrap, re
 import parser_generator, interpreter, grammar_parser
 
 greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>.","Press F2 to see the menu."]
@@ -58,7 +58,7 @@ class cs164bRepl:
     # TODO: change this to fast-fail; if a file has an error, we want to know immediately
     # and parsing the rest of the file is a waste.
     # I'll change this after the current version is merged into the REPL.
-    def loadProgram(p_file):
+    def loadProgram(self, p_file):
 
         # save the history
         history = self.history[:]
@@ -67,7 +67,11 @@ class cs164bRepl:
         newline = self.cs164bparser.tokenize("\n")
 
         # load in the program file
-        prog = re.findall('[^\r\n;]+', re.sub("#.*\r?\n", "", open(p_file).read()))
+        try:
+            prog = re.findall('[^\r\n;]+', re.sub("#.*\r?\n", "", open(p_file).read()))
+        except IOError, e:
+            self.printLine("Error loading file!")
+            return False
 
         # initialize a parser instance, i.e., a coroutine, and prep it
         parser = self.cs164bparser.parse()
@@ -75,6 +79,7 @@ class cs164bRepl:
 
         # no newline insert before the first line of a statement
         first_line = True
+        success = True
         for l in prog:
             try:
                 tokens = self.cs164bparser.tokenize(l)
@@ -98,12 +103,15 @@ class cs164bRepl:
             except SyntaxError, e:
                 self.printLine("Error while parsing line: " + l, 1, curses.A_BOLD)
                 self.printLine(e.msg)
+                success = False
                 break
             except Exception:
+                success = False
                 break
 
         # restore history
         self.history = history
+        return success
 
     def parse_line(self,line):
         complete = False                            # a flag set each time a statement is completed
@@ -377,25 +385,37 @@ class cs164bRepl:
         c = menu.getch()
         del menu
         curses.echo()
+
         if (c == ord('1')):
             menu = curses.newwin(y,x,0,0)
             menu.addstr(1,0,"Enter file name to load: ")
             menu.move(1, len("Enter file name to load: "))
             fileName = menu.getstr()
             #do stuff with fileName
-            menu.addstr(2,0,"Loaded. Press any key.")
+            if self.loadProgram(fileName):
+                menu.addstr(2,0,"Loaded. Press any key.")
+            else:
+                menu.addstr(2,0,"Loading %s failed!" % fileName)
             menu.getch()
+
         elif(c == ord('2')):
             menu = curses.newwin(y,x,0,0)
             menu.addstr(1,0,"Enter file name to save: ")
             menu.move(1, len("Enter file name to save: "))
             fileName = menu.getstr()
             #do stuff with fileName
-            menu.addstr(2,0,"Saved. Press any key.")
+            try:
+                f = open(fileName, 'w')
+                f.writelines(self.history)
+                f.close()
+                menu.addstr(2,0,"Saved. Press any key.")
+            except IOError, e:
+                menu.addstr(2,0,"Saving to %s failed!" % fileName)
             menu.getch()
+
         elif(c == ord('3')):
             self.gracefulExit()
-            
+
         curses.noecho()
         del menu
         self.screen.touchwin()
