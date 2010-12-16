@@ -569,13 +569,28 @@ class cs164bRepl:
                         line = history[hist_ptr]
                         self.cursorx = len(line)
 
-                elif i == curses.KEY_LEFT:
+                elif i == curses.KEY_LEFT:                      # cursor movement: move until start of line
                     if self.cursorx > 0:
                         self.cursorx -= 1
 
-                elif i == curses.KEY_RIGHT:
+                elif i == curses.KEY_RIGHT:                     # more cursor movement
                     if self.cursorx < len(line):
                         self.cursorx += 1
+
+                elif i == 1:                                    # ^A goes to the start of the line
+                    self.cursorx = 0
+
+                elif i == 5:                                    # ^E goes to the end of the line
+                    self.cursorx = len(line)
+
+                elif i == 23:                                   # ^W removes the previous word, up to a space
+                    pos = line.rfind(' ', 0, self.cursorx)      # locate the space position
+                    if pos != -1:
+                        line = line[:pos] + line[self.cursorx:] # if it's there, strip out the word
+                        self.cursorx = pos                      # and update cursor pos
+                    else:
+                        line = ""                               # otherwise, there's only one word - cut the whole thing
+                        self.cursorx = 0
 
                 elif i == 9:                                    # horizontal tab
                     if line == "" or line[-1].isspace() or self.cursorx != len(line):
