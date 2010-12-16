@@ -598,6 +598,10 @@ class cs164bRepl:
                 # refresh the display
                 self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
 
+                # the suggestions box is useless if we're not where we're supposed to be
+                if self.cursorx != len(line):
+                    self.clearBox(self.infoBox)
+
                 # cancel the line-to-be on ^C
                 if interruptFlag:
                     break
