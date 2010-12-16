@@ -55,6 +55,7 @@ class cs164bRepl:
         for i in range(len(greetings)):
             self.screen.addstr(i,0, greetings[i])
         self.curLineNumber = len(greetings)-1
+        self.cursorx = 0
 
     # quick macro for loading in a file, based on the line-by-line parser model.
     def loadProgram(self, p_file):
@@ -502,6 +503,8 @@ class cs164bRepl:
             self.updateCurrentLine(line)
             lineTokens = []
 
+            self.cursorx = len(line)
+
             history.insert(hist_ptr, line)
 
             # processes each character on this line
@@ -511,6 +514,7 @@ class cs164bRepl:
                 tab = False
                 interruptFlag = False
                 self.screen.refresh()
+                self.screen.move(self.curLineNumber, self.cursorx + len(PROMPTSTR))
                 try:
                     i = self.screen.getch() #get next char
                 except KeyboardInterrupt:
@@ -520,9 +524,11 @@ class cs164bRepl:
                 if self.inTab and i != 9:
                     self.inTab = False
                     line = self.suggestedLine
+                    self.cursorx = len(line)
 
                 if i >= 32 and i < 127:                         # printable characters
-                    line += chr(i)                              # add to the current buffer
+                    line = strInsert(line, chr(i), self.cursorx)
+                    self.cursorx += 1
                     hist_ptr = 0
                     history[hist_ptr] = line                    # and save the line so far
                     try:
@@ -533,11 +539,12 @@ class cs164bRepl:
                 elif i == ord('\n'):                            # EOL characters
                     self.screen.addch(i)
                     line += chr(i)                              # add to the current buffer
+                    self.cursorx = 0
 
                 elif (i == 127 or i == curses.KEY_BACKSPACE):   # handle backspace properly, plus a hack for mac
-                    cursory, cursorx = self.screen.getyx()
-                    if (cursorx > len(PROMPTSTR)):              # but don't delete the prompt
-                        line = line[:-1]
+                    if self.cursorx > 0:                        # but don't delete the prompt
+                        line = strRemove(line, self.cursorx-1)
+                        self.cursorx -= 1
 
                 elif i == curses.KEY_UP:
                     if hist_ptr < len(history) - 1:
@@ -545,21 +552,33 @@ class cs164bRepl:
                             history[hist_ptr] = line            # save the line so far, if it's new
                         hist_ptr = hist_ptr + 1                 # go back in time WHHOOOOOHHHO
                         line = history[hist_ptr]
+                        self.cursorx = len(line)
 
                 elif i == curses.KEY_DOWN:
                     if hist_ptr > 0:                            # if we can go forward, do so
                         hist_ptr = hist_ptr - 1
                         line = history[hist_ptr]
+                        self.cursorx = len(line)
+
+                elif i == curses.KEY_LEFT:
+                    if self.cursorx > 0:
+                        self.cursorx -= 1
+
+                elif i == curses.KEY_RIGHT:
+                    if self.cursorx < len(line):
+                        self.cursorx += 1
 
                 elif i == 9:                                    # horizontal tab
-                    if line == "" or line[-1].isspace():
-                        line += '\t'
+                    if line == "" or line[-1].isspace() or self.cursorx != len(line):
+                        line = strInsert(line, '\t', self.cursorx)
+                        self.cursorx += 1
                     else:
                         suggestions = self.getSuggestions(lineTokens)
                         if (type(suggestions) == dict and suggestions) or (type(suggestions) == tuple and suggestions[2]):
                             tab = True
                         else:
-                            line += '\t'
+                            line = strInsert(line, '\t', self.cursorx)
+                            self.cursorx += 1
 
                 elif i == curses.KEY_F2: #F2
                     self.menu()
@@ -585,6 +604,16 @@ class cs164bRepl:
 
             hist_ptr = 0
             history[hist_ptr] =  line[:-1]
+
+# because python strings are annoyingly immutable
+def strInsert(original, new, pos):
+    # inserts new inside original at pos
+    return original[:pos] + new + original[pos:]
+
+# same deal as above, remove char at pos
+# no arg validation, let lists take care of that
+def strRemove(original, pos):
+    return original[:pos] + original[pos+1:]
 
 if __name__ == "__main__":
     repl = cs164bRepl()
