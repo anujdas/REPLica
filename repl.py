@@ -61,8 +61,9 @@ class cs164bRepl:
         #message to return
         message = ""
 
-        # save the history
+        # save state
         history = self.history[:]
+        lineNumber = self.curLineNumber
 
         # grab the token for a newline so we know how to pad our lines
         newline = self.cs164bparser.tokenize("\n")
@@ -91,7 +92,7 @@ class cs164bRepl:
                     first_line = False
                     if type(input_ast) == tuple:        # parsing completed on this line; execute result
                         self.exec_fail = False
-                        interpreter.ExecGlobalStmt(input_ast)
+                        interpreter.ExecGlobalStmt(input_ast, self)
                         if self.exec_fail:
                             raise Exception
 
@@ -111,6 +112,7 @@ class cs164bRepl:
 
         # restore history
         self.history = history
+        self.curLineNumber = lineNumber
         return (success, message)
 
     def parse_line(self, line):
@@ -122,7 +124,7 @@ class cs164bRepl:
                 self.currLine = self.currLine + line
                 if type(input_ast) == tuple:        # parsing completed on this line; execute result
                     self.exec_fail = False
-                    interpreter.ExecGlobalStmt(input_ast,self)
+                    interpreter.ExecGlobalStmt(input_ast, self)
                     if not self.exec_fail:
                         self.history.append(self.currLine + '\n')
                     self.currLine = ""
@@ -453,6 +455,7 @@ class cs164bRepl:
             try:
                 f = open(fileName, 'w')
                 f.writelines(self.history)
+                f.write('\n')
                 f.close()
                 menu.addstr(2,0,"Saved. Press any key.")
             except IOError, e:
