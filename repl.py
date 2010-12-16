@@ -462,6 +462,11 @@ class cs164bRepl:
         elif(c == ord('3')):
             self.gracefulExit()
 
+        else:
+            menu = curses.newwin(y,x,0,0)
+            menu.addstr(1,0,"Not a valid option. Press any key to continue.")
+            menu.getch()
+
         curses.noecho()
         del menu
         self.screen.touchwin()
