@@ -57,9 +57,6 @@ class cs164bRepl:
         self.curLineNumber = len(greetings)-1
 
     # quick macro for loading in a file, based on the line-by-line parser model.
-    # TODO: change this to fast-fail; if a file has an error, we want to know immediately
-    # and parsing the rest of the file is a waste.
-    # I'll change this after the current version is merged into the REPL.
     def loadProgram(self, p_file):
         #message to return
         message = ""
@@ -501,7 +498,7 @@ class cs164bRepl:
 
             # processes each character on this line
             i = 0
-            while i != ord('\n') and i != ord(';'):
+            while i != ord('\n'):
 
                 tab = False
                 interruptFlag = False
@@ -525,9 +522,9 @@ class cs164bRepl:
                     except NameError, e:
                         lineTokens = []
 
-                elif i == ord('\n') or i == ord(';'):           # EOL characters
+                elif i == ord('\n'):                            # EOL characters
                     self.screen.addch(i)
-                    line += chr(i)                              #add to the current buffer
+                    line += chr(i)                              # add to the current buffer
 
                 elif (i == 127 or i == curses.KEY_BACKSPACE):   # handle backspace properly, plus a hack for mac
                     cursory, cursorx = self.screen.getyx()
@@ -565,13 +562,18 @@ class cs164bRepl:
                 # refresh the display
                 self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
             if not interruptFlag and len(lineTokens) > 0 and len(line) > 1:
-                if not first_line:
-                    to_parse = '\n' + line[:-1]
-                else:
-                    to_parse = line[:-1]
-                    first_line = False
-                if self.parse_line(to_parse):                   # do an incremental parse
-                    first_line = True                           # check if a statement was completed
+                lines = line.split(';')
+                lines = [l + '\n' for l in lines[:-1]] + [lines[len(lines) - 1]]
+                for l in lines:
+                    if not first_line:
+                        to_parse = '\n' + l[:-1]
+                    else:
+                        to_parse = l[:-1]
+                        first_line = False
+                    if self.parse_line(to_parse):                   # do an incremental parse
+                        first_line = True                           # check if a statement was completed
+                    if self.exec_fail:
+                        break
 
             hist_ptr = 0
             history[hist_ptr] =  line[:-1]
