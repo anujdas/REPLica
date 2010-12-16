@@ -283,7 +283,7 @@ class EarleyParser:
         # put this here for the initial next() call required by Python coroutines
         line = (yield "Prepped for parse-off, cap'n!")
         inp = line
-        self.parsedepth = self.parsedepth + 1
+        self.parsedepth = 1
 
         # Add edge (0,0,(S -> . alpha)) to worklist, for all S -> alpha
         for P in self.grammar[self.grammar.startSymbol].productions:
