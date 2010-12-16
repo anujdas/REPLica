@@ -107,6 +107,10 @@ class cs164bRepl:
                 message = "Error while parsing line: " + l + "\n" + e.msg
                 success = False
                 break
+            except KeyboardInterrupt:
+                message = "Execution terminated by user while loading file: " + p_file
+                success = False
+                break
             except Exception:
                 success = False
                 break
@@ -146,6 +150,11 @@ class cs164bRepl:
         except SyntaxError, e:
             self.printLine("Error while parsing line: " + line, 1, curses.A_BOLD)
             self.printLine(e.msg)
+            self.parser = self.cs164bparser.parse()
+            self.parser.next()
+            complete = True                         # mark the start of a new statement
+        except KeyboardInterrupt:
+            self.printLine("Execution terminated by user while exceuting line: " + line, 1, curses.A_BOLD)
             self.parser = self.cs164bparser.parse()
             self.parser.next()
             complete = True                         # mark the start of a new statement
@@ -460,7 +469,7 @@ class cs164bRepl:
                 f.close()
                 menu.addstr(2,0,"Saved. Press any key.")
             except IOError, e:
-                menu.addstr(2,0,"Saving to %s failed!" % fileName)
+                menu.addstr(2,0,"Saving to %s failed!" % fileName, curses.color_pair(1) | curses.A_BOLD)
             menu.getch()
 
         elif(c == ord('3')):
@@ -588,6 +597,10 @@ class cs164bRepl:
 
                 # refresh the display
                 self.updateCurrentLine(line, tab, interruptFlag=interruptFlag)
+
+                # cancel the line-to-be on ^C
+                if interruptFlag:
+                    break
             if not interruptFlag and len(lineTokens) > 0 and len(line) > 1:
                 lines = line.split(';')
                 lines = [l + '\n' for l in lines[:-1]] + [lines[len(lines) - 1]]
@@ -601,9 +614,14 @@ class cs164bRepl:
                         first_line = True                           # check if a statement was completed
                     if self.exec_fail:
                         break
+                hist_ptr = 0
+                history[hist_ptr] =  line[:-1]
 
-            hist_ptr = 0
-            history[hist_ptr] =  line[:-1]
+            elif interruptFlag:
+                self.parser = self.cs164bparser.parse()
+                self.parser.next()
+                first_line = True
+                hist_ptr = 0
 
 # because python strings are annoyingly immutable
 def strInsert(original, new, pos):
