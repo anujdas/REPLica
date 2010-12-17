@@ -6,41 +6,14 @@ import sys, getopt, parser_generator, grammar_parser, repl
 
 # global environment.  Persists across invocations of the ExecGlobal function 
 globEnv = {'__up__':None}
-cs164b_builtins = ["def", "error", "print", "if", "while", "for", "in", "null", "len", "lambda", "type", "native", "ite", "coroutine", "resume", "yield", "&&", "||", "<=", ">=", "==", "!="]
+
+# persistent parser, to avoid regeneration
 cs164parser = None
 
 def ExecGlobal(ast):
     Resume(bytecode(desugar(ast))[1], globEnv)
 def ExecGlobalStmt(ast,repl = None):
     Resume(bytecode(desugar([ast]))[1], globEnv, REPL=repl)
-
-# get tab-completion results for a given string fragment
-def complete(fragment, env=globEnv):
-    lookups = map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
-    builtins = map(lambda k: (k, None), filter(lambda name: name.startswith(fragment), cs164b_builtins))
-    return filter(lambda s: not s[0].startswith('__'), lookups + builtins)
-
-# same as above, except for dictionary/object lookups
-# go by Lua standard: __mt/__index for lookups
-def completeObj(fragment, obj):
-    # recursively collect all attributes belonging to this function and its parent classes
-    supers = completeObj(fragment, obj['__mt']) if '__mt' in obj and obj['__mt'] else []
-    return supers + complete(fragment, env=obj)
-
-# check if the variable exists anywhere accessible from this environment
-# if so, return its value, else None
-def locateInEnv(var, env):
-    if not env:
-        return None
-    elif var in env:
-        return env[var]
-    elif '__up__' in env:
-        return locateInEnv(var, env['__up__'])
-    elif '__mt' in env:
-        return locateInEnv(var, env['__mt'])
-    else:
-        return None
-
 
 # Abstract syntax of bytecode:
 #

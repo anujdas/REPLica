@@ -2,6 +2,7 @@
 import curses, sys, textwrap, re, os
 import parser_generator, interpreter, grammar_parser
 
+cs164b_builtins = ["def", "error", "print", "if", "while", "for", "in", "null", "len", "lambda", "type", "native", "ite", "coroutine", "resume", "yield", "&&", "||", "<=", ">=", "==", "!="]
 greetings = ["Welcome to cs164b!","To exit, hit <Ctrl-d>.","Press F2 to see the menu."]
 PROMPTSTR =   "cs164b> "
 CONTINUESTR = "    ... "
@@ -310,6 +311,34 @@ class cs164bRepl:
         box.touchwin()
         box.refresh()
 
+
+    # get tab-completion results for a given string fragment
+    def complete(self, fragment, env):
+        lookups = map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
+        builtins = map(lambda k: (k, None), filter(lambda name: name.startswith(fragment), cs164b_builtins))
+        return filter(lambda s: not s[0].startswith('__'), lookups + builtins)
+
+    # same as above, except for dictionary/object lookups
+    # go by Lua standard: __mt/__index for lookups
+    def completeObj(self, fragment, obj):
+        # recursively collect all attributes belonging to this function and its parent classes
+        supers = self.completeObj(fragment, obj['__mt']) if '__mt' in obj and obj['__mt'] else []
+        return supers + self.complete(fragment, env=obj)
+
+    # check if the variable exists anywhere accessible from this environment
+    # if so, return its value, else None
+    def locateInEnv(self, var, env):
+        if not env:
+            return None
+        elif var in env:
+            return env[var]
+        elif '__up__' in env:
+            return self.locateInEnv(var, env['__up__'])
+        elif '__mt' in env:
+            return self.locateInEnv(var, env['__mt'])
+        else:
+            return None
+
     def getSuggestions(self, tokens):
 
         def findFunctionalUnit(tokens):
@@ -324,12 +353,12 @@ class cs164bRepl:
             i = 0
             while i < len(tokens) - 1:
                 if tokens[i+1][0] in (self.dot_tkn[0], self.colon_tkn[0]):
-                    env = interpreter.locateInEnv(tokens[i][1], env)    # go one object in
+                    env = self.locateInEnv(tokens[i][1], env)           # go one object in
                     i += 1                                              # and skip over the dot
                     if type(env) != dict:
                         return None                                     # no such variable, or not an object
                 elif tokens[i+1][0] == self.open_tkn[0]:                # make sure this is actually a function
-                    if isinstance(interpreter.locateInEnv(tokens[i][1], env), interpreter.FunVal):
+                    if isinstance(self.locateInEnv(tokens[i][1], env), interpreter.FunVal):
                         inparens.append((tokens[i][1], env))            # if so, add it to the stack, along with its env
                         env = interpreter.globEnv
                         i += 1
@@ -360,13 +389,13 @@ class cs164bRepl:
         if not fragType:
             return None
         elif fragType[0] == 'none':
-            return dict(interpreter.complete(fragType[1]))
+            return dict(self.complete(fragType[1], interpreter.globEnv))
         elif fragType[0] == 'obj':
-            return dict(interpreter.completeObj(fragType[2], fragType[1]))
+            return dict(self.completeObj(fragType[2], fragType[1]))
         elif fragType[0] == 'fun':
-            funVal = interpreter.locateInEnv(fragType[1], fragType[3])
+            funVal = self.locateInEnv(fragType[1], fragType[3])
             argList = funVal.fun.argList
-            return (fragType[1], argList, dict(interpreter.complete(fragType[2])))  # (function name, arguments, tab completions)
+            return (fragType[1], argList, dict(self.complete(fragType[2], interpreter.globEnv)))  # (function name, arguments, tab completions)
 
     def showSuggestions(self, suggestions):
 
