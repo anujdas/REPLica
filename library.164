@@ -21,6 +21,19 @@ def _while_(C,B) {
         lastVal
 }
 
+def range(start, stop) {
+    def i = start
+    lambda() {
+        if(i < stop) {
+            def cur = i
+            i = i + 1
+            cur
+        } else {
+            null
+        }
+    }
+}
+
 # Turn a coroutine into an iterator
 def wrap(lam, arg) {
     def co = coroutine(lam)
