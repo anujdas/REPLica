@@ -583,6 +583,17 @@ class cs164bRepl:
                 elif i == 5:                                    # ^E goes to the end of the line
                     self.cursorx = len(line)
 
+                elif i == 11:                                   # ^K kills the line from here to the end
+                    line = line[:self.cursorx]
+
+                elif i == 12:                                   # ^L clears the screen except for the current line
+                    self.screen.scroll(self.curLineNumber)
+                    self.curLineNumber = 0
+
+                elif i == 21:                                   # ^U kills the line from here to the beginning
+                    line = line[self.cursorx:]
+                    self.cursorx = 0
+
                 elif i == 23:                                   # ^W removes the previous word, up to a space
                     pos = line.rfind(' ', 0, self.cursorx)      # locate the space position
                     if pos != -1:
