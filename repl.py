@@ -311,12 +311,11 @@ class cs164bRepl:
         box.touchwin()
         box.refresh()
 
-
     # get tab-completion results for a given string fragment
     def complete(self, fragment, env):
-        lookups = map(lambda k: (k, env[k]), filter(lambda name: name.startswith(fragment), env))
-        builtins = map(lambda k: (k, None), filter(lambda name: name.startswith(fragment), cs164b_builtins))
-        return filter(lambda s: not s[0].startswith('__'), lookups + builtins)
+        lookups = map(lambda k: (k, env[k]), filter(lambda name: str(name).startswith(fragment), env))
+        builtins = map(lambda k: (k, None), filter(lambda name: str(name).startswith(fragment), cs164b_builtins))
+        return filter(lambda s: not str(s[0]).startswith('__'), lookups + builtins)
 
     # same as above, except for dictionary/object lookups
     # go by Lua standard: __mt/__index for lookups
@@ -403,7 +402,7 @@ class cs164bRepl:
         def dictStr(d):
             def getObjAttrs(obj):
                 supers = getObjAttrs(obj['__mt']) if '__mt' in obj and obj['__mt'] else []
-                return supers + [(k,obj[k]) for k in obj if not k.startswith('__')]
+                return supers + [(k,obj[k]) for k in obj if not str(k).startswith('__')]
 
             contents = sorted(["." + str(k) + ": " + ("{...}" if type(v) is dict else str(v)) for k,v in dict(getObjAttrs(d)).iteritems()])
             return "{" + (reduce(lambda x,y: x + ", " + y, contents) if contents else "") + "}"
